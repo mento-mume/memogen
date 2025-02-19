@@ -13,7 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase.config"; // Import auth from your Firebase config file
+import { auth, db } from "../firebase.config"; // Import auth and db from your Firebase config file
+import { doc, setDoc } from "firebase/firestore"; // Import Firestore functions
+import OAuth from "../components/OAuth";
 
 const SignUpForm = ({ className, ...props }) => {
   const navigate = useNavigate(); // Initialize useNavigate hook
@@ -54,6 +56,17 @@ const SignUpForm = ({ className, ...props }) => {
       // If successful, access the user object
       const user = userCredential.user;
       console.log("User signed up successfully:", user);
+
+      // Add user data to Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        firstName: firstName,
+        surname: surname,
+        phoneNumber: phoneNumber,
+        email: email,
+        createdAt: new Date(), // Optional: Add a timestamp
+      });
+
+      console.log("User data added to Firestore");
 
       // Navigate to dashboard
       navigate("/dashboard");
@@ -104,9 +117,8 @@ const SignUpForm = ({ className, ...props }) => {
                 <Button variant="outline" className="w-full">
                   Sign Up with Apple
                 </Button>
-                <Button variant="outline" className="w-full">
-                  Sign Up with Google
-                </Button>
+
+                <OAuth />
               </div>
               <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
                 <span className="relative z-10 bg-background px-2 text-muted-foreground">

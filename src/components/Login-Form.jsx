@@ -15,6 +15,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase.config"; // Import auth from your Firebase config file
 import visibilityIcon from "../assets/visibilityIcon.svg";
+import OAuth from "./OAuth";
 
 export function LoginForm({ className, ...props }) {
   const navigate = useNavigate(); // Initialize useNavigate hook
@@ -95,9 +96,10 @@ export function LoginForm({ className, ...props }) {
                 <Button variant="outline" className="w-full">
                   Login with Apple
                 </Button>
-                <Button variant="outline" className="w-full">
+                {/* <Button variant="outline" className="w-full">
                   Login with Google
-                </Button>
+                </Button> */}
+                <OAuth />
               </div>
               <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
                 <span className="relative z-10 bg-background px-2 text-muted-foreground">
