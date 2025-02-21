@@ -39,17 +39,21 @@ const Dashboard = () => {
               DOB
             </Button>
           </Link>
-          <Button variant="primary" size="lg" className="w-full">
-            DOFA
-          </Button>
+          <Link to="/DOFACorrectionForm" className="w-full">
+            <Button variant="primary" size="lg" className="w-full">
+              DOFA
+            </Button>
+          </Link>
           <Link to="/NameChangeForm" className="w-full">
             <Button variant="primary" size="lg" className="w-full">
               CON
             </Button>
           </Link>
-          <Button variant="primary" size="lg" className="w-full">
-            Migration
-          </Button>
+          <Link to="/RestorationMigrationForm" className="w-full">
+            <Button variant="primary" size="lg" className="w-full">
+              Restoration
+            </Button>
+          </Link>
         </div>
         <Button variant="destructive" onClick={onLogout} className="mt-4">
           Logout

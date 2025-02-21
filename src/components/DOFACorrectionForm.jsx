@@ -1,11 +1,12 @@
 import { useState } from "react";
-import PropTypes from "prop-types";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import PropTypes from "prop-types";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -19,10 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format } from "date-fns";
 import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
 
-// DatePickerField component with proper prop validation
+// Reusable date picker component
 const DatePickerField = ({ value, onChange, label, error }) => (
   <div className="flex flex-col space-y-2">
     <Label>{label}</Label>
@@ -50,38 +50,45 @@ const DatePickerField = ({ value, onChange, label, error }) => (
     {error && <span className="text-red-500 text-sm">{error}</span>}
   </div>
 );
-
+// PropTypes validation for DatePickerField
 DatePickerField.propTypes = {
+  // Value can be either a Date object or null
   value: PropTypes.instanceOf(Date),
+  // onChange is a required function that handles date selection
   onChange: PropTypes.func.isRequired,
+  // Label is a required string to display above the date picker
   label: PropTypes.string.isRequired,
+  // Error is an optional string for displaying validation errors
   error: PropTypes.string,
 };
 
+// Default props for DatePickerField
 DatePickerField.defaultProps = {
   value: null,
   error: null,
 };
 
-const DOBCorrectionForm = () => {
-  // Initial state for a single correction entry
-  const initialCorrectionEntry = {
+const DOFACorrectionForm = () => {
+  // Initial state for a single entry
+  const initialEntry = {
     name: "",
     ippis: "",
-    previousDOB: null,
-    newDOB: null,
+    previousDOFA: null,
+    newDOFA: null,
     documents: {
-      dob: false,
       payslip: false,
-      primary: false,
-      service: false,
+      assumption: false,
+      appointment: false,
+      resignation: false,
+      acceptanceResignation: false,
+      recordService: false,
     },
     otherDocuments: "",
     observation: "",
     remark: "approve",
   };
 
-  // Initialize main form state
+  // Main form state
   const [formData, setFormData] = useState({
     reference: "",
     date: null,
@@ -89,38 +96,35 @@ const DOBCorrectionForm = () => {
       single: true,
       multiple: false,
     },
-    corrections: [{ ...initialCorrectionEntry }],
+    entries: [{ ...initialEntry }],
   });
 
-  // Error state management
+  // Validation and notification states
   const [errors, setErrors] = useState({});
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
 
   // Supporting documents configuration
   const supportingDocuments = [
-    { id: "dob", label: "Birth Certificate" },
     { id: "payslip", label: "Payslip" },
-    { id: "primary", label: "Primary School Certificate" },
-    { id: "service", label: "Record of Service" },
+    { id: "assumption", label: "Assumption of Duty" },
+    { id: "appointment", label: "Appointment Letter" },
+    { id: "resignation", label: "Resignation Letter" },
+    { id: "acceptanceResignation", label: "Acceptance of Resignation" },
+    { id: "recordService", label: "Record of Service" },
   ];
 
-  // Handle main form field changes
+  // Input change handlers
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
-    // Clear error for the field when it's changed
     if (errors[field]) {
-      setErrors((prev) => ({
-        ...prev,
-        [field]: null,
-      }));
+      setErrors((prev) => ({ ...prev, [field]: null }));
     }
   };
 
-  // Handle request type changes
   const handleRequestTypeChange = (type) => {
     setFormData((prev) => ({
       ...prev,
@@ -131,48 +135,45 @@ const DOBCorrectionForm = () => {
     }));
   };
 
-  // Handle changes in correction entries
-  const handleCorrectionChange = (index, field, value) => {
+  const handleEntryChange = (index, field, value) => {
     setFormData((prev) => ({
       ...prev,
-      corrections: prev.corrections.map((correction, i) =>
-        i === index ? { ...correction, [field]: value } : correction
+      entries: prev.entries.map((entry, i) =>
+        i === index ? { ...entry, [field]: value } : entry
       ),
     }));
   };
 
-  // Handle document checkbox changes
   const handleDocumentChange = (index, docId, checked) => {
     setFormData((prev) => ({
       ...prev,
-      corrections: prev.corrections.map((correction, i) =>
+      entries: prev.entries.map((entry, i) =>
         i === index
           ? {
-              ...correction,
+              ...entry,
               documents: {
-                ...correction.documents,
+                ...entry.documents,
                 [docId]: checked,
               },
             }
-          : correction
+          : entry
       ),
     }));
   };
 
-  // Add new correction entry
-  const addCorrectionEntry = () => {
+  // Entry management functions
+  const addEntry = () => {
     setFormData((prev) => ({
       ...prev,
-      corrections: [...prev.corrections, { ...initialCorrectionEntry }],
+      entries: [...prev.entries, { ...initialEntry }],
     }));
   };
 
-  // Remove correction entry
-  const removeCorrectionEntry = (index) => {
-    if (formData.corrections.length > 1) {
+  const removeEntry = (index) => {
+    if (formData.entries.length > 1) {
       setFormData((prev) => ({
         ...prev,
-        corrections: prev.corrections.filter((_, i) => i !== index),
+        entries: prev.entries.filter((_, i) => i !== index),
       }));
     }
   };
@@ -181,27 +182,38 @@ const DOBCorrectionForm = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    // Validate main form fields
-    if (!formData.reference)
+    if (!formData.reference) {
       newErrors.reference = "Reference number is required";
-    if (!formData.date) newErrors.date = "Date is required";
+    }
+    if (!formData.date) {
+      newErrors.date = "Date is required";
+    }
 
-    // Validate each correction entry
-    formData.corrections.forEach((correction, index) => {
-      if (!correction.name) newErrors[`name-${index}`] = "Name is required";
-      if (!correction.ippis)
+    formData.entries.forEach((entry, index) => {
+      if (!entry.name) newErrors[`name-${index}`] = "Name is required";
+      if (!entry.ippis)
         newErrors[`ippis-${index}`] = "IPPIS number is required";
-      if (!correction.previousDOB)
-        newErrors[`previousDOB-${index}`] = "Previous DOB is required";
-      if (!correction.newDOB)
-        newErrors[`newDOB-${index}`] = "New DOB is required";
+      if (!entry.previousDOFA)
+        newErrors[`previousDOFA-${index}`] = "Previous DOFA is required";
+      if (!entry.newDOFA)
+        newErrors[`newDOFA-${index}`] = "New DOFA is required";
+
+      // Check if new DOFA is before previous DOFA
+      if (
+        entry.previousDOFA &&
+        entry.newDOFA &&
+        entry.newDOFA > entry.previousDOFA
+      ) {
+        newErrors[`newDOFA-${index}`] =
+          "New DOFA must be before or equal to Previous DOFA";
+      }
     });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
+  // Form submission handler
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -217,7 +229,7 @@ const DOBCorrectionForm = () => {
           single: true,
           multiple: false,
         },
-        corrections: [{ ...initialCorrectionEntry }],
+        entries: [{ ...initialEntry }],
       });
     } else {
       setShowError(true);
@@ -228,7 +240,7 @@ const DOBCorrectionForm = () => {
   return (
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
-        <CardTitle>Date of Birth Correction Form</CardTitle>
+        <CardTitle>Date of First Appointment Correction Form</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -240,7 +252,7 @@ const DOBCorrectionForm = () => {
                 id="reference"
                 value={formData.reference}
                 onChange={(e) => handleInputChange("reference", e.target.value)}
-                className={`w-full ${errors.reference ? "border-red-500" : ""}`}
+                className={errors.reference ? "border-red-500" : ""}
               />
               {errors.reference && (
                 <span className="text-red-500 text-sm">{errors.reference}</span>
@@ -254,7 +266,7 @@ const DOBCorrectionForm = () => {
             />
           </div>
 
-          {/* Request Type Section */}
+          {/* Request Type Selection */}
           <div className="space-y-2">
             <Label>Request Type</Label>
             <div className="flex space-x-4">
@@ -277,34 +289,33 @@ const DOBCorrectionForm = () => {
             </div>
           </div>
 
-          {/* Correction Entries */}
-          {formData.corrections.map((correction, index) => (
+          {/* Entry Forms */}
+          {formData.entries.map((entry, index) => (
             <div
               key={index}
               className="space-y-6 p-4 border rounded-lg relative"
             >
-              {formData.requestType.multiple &&
-                formData.corrections.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeCorrectionEntry(index)}
-                    className="absolute top-2 right-2"
-                    aria-label="Remove entry"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
+              {formData.requestType.multiple && formData.entries.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeEntry(index)}
+                  className="absolute top-2 right-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
 
+              {/* Basic Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor={`name-${index}`}>Name</Label>
                   <Input
                     id={`name-${index}`}
-                    value={correction.name}
+                    value={entry.name}
                     onChange={(e) =>
-                      handleCorrectionChange(index, "name", e.target.value)
+                      handleEntryChange(index, "name", e.target.value)
                     }
                     className={errors[`name-${index}`] ? "border-red-500" : ""}
                   />
@@ -318,9 +329,9 @@ const DOBCorrectionForm = () => {
                   <Label htmlFor={`ippis-${index}`}>IPPIS Number</Label>
                   <Input
                     id={`ippis-${index}`}
-                    value={correction.ippis}
+                    value={entry.ippis}
                     onChange={(e) =>
-                      handleCorrectionChange(index, "ippis", e.target.value)
+                      handleEntryChange(index, "ippis", e.target.value)
                     }
                     className={errors[`ippis-${index}`] ? "border-red-500" : ""}
                   />
@@ -332,22 +343,21 @@ const DOBCorrectionForm = () => {
                 </div>
               </div>
 
+              {/* DOFA Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <DatePickerField
-                  label="Previous DOB"
-                  value={correction.previousDOB}
+                  label="Previous DOFA"
+                  value={entry.previousDOFA}
                   onChange={(date) =>
-                    handleCorrectionChange(index, "previousDOB", date)
+                    handleEntryChange(index, "previousDOFA", date)
                   }
-                  error={errors[`previousDOB-${index}`]}
+                  error={errors[`previousDOFA-${index}`]}
                 />
                 <DatePickerField
-                  label="New DOB"
-                  value={correction.newDOB}
-                  onChange={(date) =>
-                    handleCorrectionChange(index, "newDOB", date)
-                  }
-                  error={errors[`newDOB-${index}`]}
+                  label="New DOFA"
+                  value={entry.newDOFA}
+                  onChange={(date) => handleEntryChange(index, "newDOFA", date)}
+                  error={errors[`newDOFA-${index}`]}
                 />
               </div>
 
@@ -359,7 +369,7 @@ const DOBCorrectionForm = () => {
                     <div key={doc.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`${doc.id}-${index}`}
-                        checked={correction.documents[doc.id]}
+                        checked={entry.documents[doc.id]}
                         onCheckedChange={(checked) =>
                           handleDocumentChange(index, doc.id, checked)
                         }
@@ -370,19 +380,16 @@ const DOBCorrectionForm = () => {
                 </div>
               </div>
 
+              {/* Additional Fields */}
               <div>
                 <Label htmlFor={`other-docs-${index}`}>
                   Other Supporting Documents
                 </Label>
                 <Input
                   id={`other-docs-${index}`}
-                  value={correction.otherDocuments}
+                  value={entry.otherDocuments}
                   onChange={(e) =>
-                    handleCorrectionChange(
-                      index,
-                      "otherDocuments",
-                      e.target.value
-                    )
+                    handleEntryChange(index, "otherDocuments", e.target.value)
                   }
                 />
               </div>
@@ -391,19 +398,20 @@ const DOBCorrectionForm = () => {
                 <Label htmlFor={`observation-${index}`}>Observation</Label>
                 <Input
                   id={`observation-${index}`}
-                  value={correction.observation}
+                  value={entry.observation}
                   onChange={(e) =>
-                    handleCorrectionChange(index, "observation", e.target.value)
+                    handleEntryChange(index, "observation", e.target.value)
                   }
                 />
               </div>
 
+              {/* Remark Selection */}
               <div className="space-y-2">
                 <Label>Remark</Label>
                 <Select
-                  value={correction.remark}
+                  value={entry.remark}
                   onValueChange={(value) =>
-                    handleCorrectionChange(index, "remark", value)
+                    handleEntryChange(index, "remark", value)
                   }
                 >
                   <SelectTrigger className="w-full">
@@ -418,37 +426,44 @@ const DOBCorrectionForm = () => {
             </div>
           ))}
 
+          {/* Add Entry Button */}
           {formData.requestType.multiple && (
             <Button
               type="button"
-              onClick={addCorrectionEntry}
+              onClick={addEntry}
               className="w-full"
+              variant="outline"
             >
-              Add Another Correction
+              Add Another Entry
             </Button>
           )}
 
+          {/* Submit Button */}
           <Button type="submit" className="w-full">
             Submit Form
           </Button>
+
+          {/* Success/Error Messages */}
+          {showSuccess && (
+            <Alert className="mt-4 bg-green-100">
+              <AlertDescription>
+                Form submitted successfully! The DOFA correction request has
+                been recorded.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {showError && (
+            <Alert className="mt-4 bg-red-100">
+              <AlertDescription>
+                Please fill in all required fields correctly before submitting.
+              </AlertDescription>
+            </Alert>
+          )}
         </form>
-
-        {showSuccess && (
-          <Alert className="mt-4 bg-green-100">
-            <AlertDescription>Form submitted successfully!</AlertDescription>
-          </Alert>
-        )}
-
-        {showError && (
-          <Alert className="mt-4 bg-red-100">
-            <AlertDescription>
-              Please fill in all required fields correctly.
-            </AlertDescription>
-          </Alert>
-        )}
       </CardContent>
     </Card>
   );
 };
 
-export default DOBCorrectionForm;
+export default DOFACorrectionForm;
