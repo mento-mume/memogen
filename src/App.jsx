@@ -6,7 +6,9 @@ import PasswordResetForm from "./pages/PasswordReset";
 import ProtectedRoute from "./components/ProtectedRoutes";
 import Dashboard from "./pages/Dashboard";
 import NameChangeForm from "./components/NameChangeForm";
+import RestorationMigrationForm from "./components/RestorationMigrationForm";
 import DOBCorrectionForm from "./components/DOBCorrectionForm";
+import DOFACorrectionForm from "./components/DOFACorrectionForm";
 function App() {
   return (
     <>
@@ -20,6 +22,16 @@ function App() {
         <Route path="/DOBCorrectionForm" element={<ProtectedRoute />}>
           <Route path="/DOBCorrectionForm" element={<DOBCorrectionForm />} />
         </Route>
+        <Route path="/DOFACorrectionForm" element={<ProtectedRoute />}>
+          <Route path="/DOFACorrectionForm" element={<DOFACorrectionForm />} />
+        </Route>
+        <Route path="/RestorationMigrationForm" element={<ProtectedRoute />}>
+          <Route
+            path="/RestorationMigrationForm"
+            element={<RestorationMigrationForm />}
+          />
+        </Route>
+
         <Route path="/NameChangeForm" element={<ProtectedRoute />}>
           <Route path="/NameChangeForm" element={<NameChangeForm />} />
         </Route>
