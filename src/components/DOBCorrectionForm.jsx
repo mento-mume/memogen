@@ -1,17 +1,20 @@
 import { useState } from "react";
-import PropTypes from "prop-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Calendar } from "@/components/ui/calendar";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
+import { saveAs } from "file-saver";
+import { format } from "date-fns";
+
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -19,69 +22,265 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format } from "date-fns";
-import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Calendar as CalendarIcon,
+  CheckCircle,
+  AlertCircle,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
-// DatePickerField component with proper prop validation
-const DatePickerField = ({ value, onChange, label, error }) => (
-  <div className="flex flex-col space-y-2">
-    <Label>{label}</Label>
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={`w-full justify-start text-left font-normal ${
-            error ? "border-red-500" : ""
-          }`}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(value, "PPP") : "Select date"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <Calendar
-          mode="single"
-          selected={value}
-          onSelect={onChange}
-          initialFocus
-        />
-      </PopoverContent>
-    </Popover>
-    {error && <span className="text-red-500 text-sm">{error}</span>}
-  </div>
-);
-
-DatePickerField.propTypes = {
-  value: PropTypes.instanceOf(Date),
-  onChange: PropTypes.func.isRequired,
-  label: PropTypes.string.isRequired,
-  error: PropTypes.string,
+// Initial empty DOB correction entry object
+const emptyDOBEntry = {
+  name: "",
+  ippisNumber: "",
+  previousDOB: null,
+  newDOB: null,
+  supportingDocs: {
+    dob: false,
+    payslip: false,
+    primary: false,
+    service: false,
+  },
+  otherSupportingDocs: "",
+  observation: "",
+  remarks: "",
 };
 
-DatePickerField.defaultProps = {
-  value: null,
-  error: null,
+// Document generation function
+const generateDocument = async (data) => {
+  try {
+    // Determine which template to use based on the request type
+    const isSingleRequest = !data.requestType.multiple;
+
+    let templatePath;
+    let fileName;
+
+    if (isSingleRequest) {
+      // Single request - check if approved or rejected
+      const isApproved = data.dobEntries[0].remarks === "approve";
+      templatePath = isApproved
+        ? "/DOB_Template_single.docx"
+        : "/DOB_Template_single_rejected.docx";
+
+      const status = isApproved ? "Approved" : "Rejected";
+      fileName = `DOB_Correction_Request_${data.dobEntries[0].name}_${status}.docx`;
+    } else {
+      // Multiple requests - check if all approved, all rejected, or mixed
+      const allApproved = data.dobEntries.every(
+        (entry) => entry.remarks === "approve"
+      );
+      const allRejected = data.dobEntries.every(
+        (entry) => entry.remarks === "reject"
+      );
+
+      if (allApproved) {
+        templatePath = "/DOB_Template_multiple_all_approved.docx";
+        fileName = "DOB_Correction_Request_Multiple_Entries_All_Approved.docx";
+      } else if (allRejected) {
+        templatePath = "/DOB_Template_multiple_all_rejected.docx";
+        fileName = "DOB_Correction_Request_Multiple_Entries_All_Rejected.docx";
+      } else {
+        templatePath = "/DOB_Template_multiple_mixed.docx";
+        fileName = "DOB_Correction_Request_Multiple_Entries_Mixed.docx";
+      }
+    }
+
+    // Fetch the appropriate template
+    const response = await fetch(templatePath);
+    const arrayBuffer = await response.arrayBuffer();
+    const zip = new PizZip(arrayBuffer);
+
+    // Create a new instance of Docxtemplater
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+    });
+
+    // Format the supporting documents as a comma-separated string
+    const getSupportingDocsList = (entry) => {
+      const docs = [];
+      if (entry.supportingDocs.dob) docs.push("Birth Certificate");
+      if (entry.supportingDocs.payslip) docs.push("Payslip");
+      if (entry.supportingDocs.primary) docs.push("Primary School Certificate");
+      if (entry.supportingDocs.service) docs.push("Record of Service");
+
+      // Add other supporting documents if provided
+      if (entry.otherSupportingDocs.trim()) {
+        docs.push(entry.otherSupportingDocs);
+      }
+
+      return docs.join(", ");
+    };
+
+    // Format current date
+    const formatDate = (date) => {
+      return format(date || new Date(), "do MMMM, yyyy");
+    };
+
+    // Common data for both single and multiple templates
+    const commonData = {
+      referenceNumber: data.reference,
+      requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
+      date: formatDate(new Date()),
+    };
+
+    let templateData = {};
+
+    if (isSingleRequest) {
+      // For single entry
+      const dobEntry = data.dobEntries[0];
+      const isApproved = dobEntry.remarks === "approve";
+
+      templateData = {
+        ...commonData,
+        name: dobEntry.name,
+        ippisNumber: dobEntry.ippisNumber || "N/A",
+        previousDOB: dobEntry.previousDOB
+          ? format(dobEntry.previousDOB, "do MMMM, yyyy")
+          : "",
+        newDOB: dobEntry.newDOB ? format(dobEntry.newDOB, "do MMMM, yyyy") : "",
+        supportingDocsList: getSupportingDocsList(dobEntry),
+        observation: dobEntry.observation || "No observation",
+        remark: isApproved ? "Approved" : "Rejected",
+        isApproved: isApproved,
+        reasonForRejection: isApproved
+          ? ""
+          : dobEntry.observation || "Incomplete documentation",
+      };
+    } else {
+      // For multiple entries
+      const detailedEntries = data.dobEntries.map((entry, index) => ({
+        sn: String.fromCharCode(97 + index), // a, b, c, etc.
+        name: entry.name,
+        ippisNumber: entry.ippisNumber || "N/A",
+        previousDOB: entry.previousDOB
+          ? format(entry.previousDOB, "do MMMM, yyyy")
+          : "",
+        newDOB: entry.newDOB ? format(entry.newDOB, "do MMMM, yyyy") : "",
+        supportingDocsList: getSupportingDocsList(entry),
+        observation: entry.observation || "No observation",
+        remark: entry.remarks === "approve" ? "Approved" : "Rejected",
+        isApproved: entry.remarks === "approve",
+      }));
+
+      // Check if all approved, all rejected, or mixed
+      const allApproved = data.dobEntries.every(
+        (entry) => entry.remarks === "approve"
+      );
+      const allRejected = data.dobEntries.every(
+        (entry) => entry.remarks === "reject"
+      );
+
+      if (allApproved || allRejected) {
+        // Simple case: all entries have the same status
+        templateData = {
+          ...commonData,
+          entries: detailedEntries,
+          allApproved: allApproved,
+          summaryRows: detailedEntries.map((entry) => ({
+            sn: entry.sn,
+            ippisNumber: entry.ippisNumber,
+            name: entry.name,
+            previousDOB: entry.previousDOB,
+            newDOB: entry.newDOB,
+          })),
+        };
+      } else {
+        // Mixed case: separate approved and rejected entries
+        const approvedEntries = data.dobEntries
+          .filter((entry) => entry.remarks === "approve")
+          .map((entry, index) => ({
+            sn: String.fromCharCode(97 + index),
+            name: entry.name,
+            ippisNumber: entry.ippisNumber || "N/A",
+            previousDOB: entry.previousDOB
+              ? format(entry.previousDOB, "do MMMM, yyyy")
+              : "",
+            newDOB: entry.newDOB ? format(entry.newDOB, "do MMMM, yyyy") : "",
+            supportingDocsList: getSupportingDocsList(entry),
+            observation: entry.observation || "No observation",
+            remark: "Approved",
+          }));
+
+        const rejectedEntries = data.dobEntries
+          .filter((entry) => entry.remarks === "reject")
+          .map((entry, index) => ({
+            sn: String.fromCharCode(97 + index),
+            name: entry.name,
+            ippisNumber: entry.ippisNumber || "N/A",
+            previousDOB: entry.previousDOB
+              ? format(entry.previousDOB, "do MMMM, yyyy")
+              : "",
+            newDOB: entry.newDOB ? format(entry.newDOB, "do MMMM, yyyy") : "",
+            supportingDocsList: getSupportingDocsList(entry),
+            observation: entry.observation || "No observation",
+            remark: "Rejected",
+          }));
+
+        templateData = {
+          ...commonData,
+          entries: detailedEntries,
+          approvedEntries: approvedEntries,
+          rejectedEntries: rejectedEntries,
+          hasApproved: approvedEntries.length > 0,
+          hasRejected: rejectedEntries.length > 0,
+
+          // Summary tables for approved and rejected
+          approvedSummary: approvedEntries.map((entry) => ({
+            sn: entry.sn,
+            ippisNumber: entry.ippisNumber,
+            name: entry.name,
+            previousDOB: entry.previousDOB,
+            newDOB: entry.newDOB,
+          })),
+          rejectedSummary: rejectedEntries.map((entry) => ({
+            sn: entry.sn,
+            ippisNumber: entry.ippisNumber,
+            name: entry.name,
+            previousDOB: entry.previousDOB,
+            newDOB: entry.newDOB,
+          })),
+        };
+      }
+    }
+
+    console.log("Template data:", templateData);
+    console.log("Using template:", templatePath);
+
+    // Set the template data
+    doc.setData(templateData);
+
+    // Render the document
+    doc.render();
+
+    // Get the binary content of the output document
+    const output = doc.getZip().generate({
+      type: "blob",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+
+    // Save the document
+    saveAs(output, fileName);
+
+    return true;
+  } catch (error) {
+    console.error("Error generating document:", error);
+    return false;
+  }
 };
 
 const DOBCorrectionForm = () => {
-  // Initial state for a single correction entry
-  const initialCorrectionEntry = {
-    name: "",
-    ippis: "",
-    previousDOB: null,
-    newDOB: null,
-    documents: {
-      dob: false,
-      payslip: false,
-      primary: false,
-      service: false,
-    },
-    otherDocuments: "",
-    observation: "",
-    remark: "approve",
-  };
-
-  // Initialize main form state
+  // State to manage form data
   const [formData, setFormData] = useState({
     reference: "",
     date: null,
@@ -89,29 +288,20 @@ const DOBCorrectionForm = () => {
       single: true,
       multiple: false,
     },
-    corrections: [{ ...initialCorrectionEntry }],
+    dobEntries: [{ ...emptyDOBEntry }],
   });
 
-  // Error state management
+  // State to manage form errors
   const [errors, setErrors] = useState({});
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [showError, setShowError] = useState(false);
+  // State to manage form submission status
+  const [submitStatus, setSubmitStatus] = useState(null);
 
-  // Supporting documents configuration
-  const supportingDocuments = [
-    { id: "dob", label: "Birth Certificate" },
-    { id: "payslip", label: "Payslip" },
-    { id: "primary", label: "Primary School Certificate" },
-    { id: "service", label: "Record of Service" },
-  ];
-
-  // Handle main form field changes
+  // Handle input change for form fields
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
-    // Clear error for the field when it's changed
     if (errors[field]) {
       setErrors((prev) => ({
         ...prev,
@@ -120,7 +310,35 @@ const DOBCorrectionForm = () => {
     }
   };
 
-  // Handle request type changes
+  // Handle input change for DOB entries
+  const handleDOBEntryChange = (index, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      dobEntries: prev.dobEntries.map((entry, i) =>
+        i === index ? { ...entry, [field]: value } : entry
+      ),
+    }));
+  };
+
+  // Handle change for supporting documents checkboxes
+  const handleSupportingDocsChange = (index, docType) => {
+    setFormData((prev) => ({
+      ...prev,
+      dobEntries: prev.dobEntries.map((entry, i) =>
+        i === index
+          ? {
+              ...entry,
+              supportingDocs: {
+                ...entry.supportingDocs,
+                [docType]: !entry.supportingDocs[docType],
+              },
+            }
+          : entry
+      ),
+    }));
+  };
+
+  // Handle change for request type (single/multiple)
   const handleRequestTypeChange = (type) => {
     setFormData((prev) => ({
       ...prev,
@@ -128,136 +346,238 @@ const DOBCorrectionForm = () => {
         single: type === "single",
         multiple: type === "multiple",
       },
+      dobEntries: type === "single" ? [{ ...emptyDOBEntry }] : prev.dobEntries,
     }));
   };
 
-  // Handle changes in correction entries
-  const handleCorrectionChange = (index, field, value) => {
+  // Add a new DOB entry
+  const addDOBEntry = () => {
     setFormData((prev) => ({
       ...prev,
-      corrections: prev.corrections.map((correction, i) =>
-        i === index ? { ...correction, [field]: value } : correction
-      ),
+      dobEntries: [...prev.dobEntries, { ...emptyDOBEntry }],
     }));
   };
 
-  // Handle document checkbox changes
-  const handleDocumentChange = (index, docId, checked) => {
-    setFormData((prev) => ({
-      ...prev,
-      corrections: prev.corrections.map((correction, i) =>
-        i === index
-          ? {
-              ...correction,
-              documents: {
-                ...correction.documents,
-                [docId]: checked,
-              },
-            }
-          : correction
-      ),
-    }));
-  };
-
-  // Add new correction entry
-  const addCorrectionEntry = () => {
-    setFormData((prev) => ({
-      ...prev,
-      corrections: [...prev.corrections, { ...initialCorrectionEntry }],
-    }));
-  };
-
-  // Remove correction entry
-  const removeCorrectionEntry = (index) => {
-    if (formData.corrections.length > 1) {
+  // Remove a DOB entry
+  const removeDOBEntry = (index) => {
+    if (formData.dobEntries.length > 1) {
       setFormData((prev) => ({
         ...prev,
-        corrections: prev.corrections.filter((_, i) => i !== index),
+        dobEntries: prev.dobEntries.filter((_, i) => i !== index),
       }));
     }
   };
 
-  // Form validation
+  // Validate the form before submission
   const validateForm = () => {
     const newErrors = {};
 
-    // Validate main form fields
-    if (!formData.reference)
+    if (!formData.reference) {
       newErrors.reference = "Reference number is required";
-    if (!formData.date) newErrors.date = "Date is required";
+    }
+    if (!formData.date) {
+      newErrors.date = "Date is required";
+    }
 
-    // Validate each correction entry
-    formData.corrections.forEach((correction, index) => {
-      if (!correction.name) newErrors[`name-${index}`] = "Name is required";
-      if (!correction.ippis)
-        newErrors[`ippis-${index}`] = "IPPIS number is required";
-      if (!correction.previousDOB)
-        newErrors[`previousDOB-${index}`] = "Previous DOB is required";
-      if (!correction.newDOB)
-        newErrors[`newDOB-${index}`] = "New DOB is required";
+    formData.dobEntries.forEach((entry, index) => {
+      if (!entry.name) {
+        newErrors[`name_${index}`] = "Name is required";
+      }
+      if (!entry.ippisNumber) {
+        newErrors[`ippisNumber_${index}`] = "IPPIS number is required";
+      }
+      if (!entry.previousDOB) {
+        newErrors[`previousDOB_${index}`] = "Previous DOB is required";
+      }
+      if (!entry.newDOB) {
+        newErrors[`newDOB_${index}`] = "New DOB is required";
+      }
+
+      // Check if at least one supporting document is selected or other supporting docs is provided
+      if (
+        !Object.values(entry.supportingDocs).some(Boolean) &&
+        !entry.otherSupportingDocs.trim()
+      ) {
+        newErrors[`supportingDocs_${index}`] =
+          "At least one supporting document is required";
+      }
+      if (!entry.remarks) {
+        newErrors[`remarks_${index}`] = "Please select remarks";
+      }
     });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
+  // (Previous code continues...)
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    setSubmitStatus(null);
 
     if (validateForm()) {
-      console.log("Form submitted:", formData);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-      // Reset form
-      setFormData({
-        reference: "",
-        date: null,
-        requestType: {
-          single: true,
-          multiple: false,
-        },
-        corrections: [{ ...initialCorrectionEntry }],
-      });
+      setTimeout(async () => {
+        // Generate the document
+        const docGenerated = await generateDocument(formData);
+
+        setSubmitStatus(docGenerated ? "success" : "error");
+
+        if (docGenerated) {
+          setTimeout(() => {
+            setFormData({
+              reference: "",
+              date: null,
+              requestType: { single: true, multiple: false },
+              dobEntries: [{ ...emptyDOBEntry }],
+            });
+            setSubmitStatus(null);
+          }, 3000);
+        }
+      }, 1000);
     } else {
-      setShowError(true);
-      setTimeout(() => setShowError(false), 3000);
+      setSubmitStatus("error");
     }
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>Date of Birth Correction Form</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Header Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="reference">Reference Number</Label>
-              <Input
-                id="reference"
-                value={formData.reference}
-                onChange={(e) => handleInputChange("reference", e.target.value)}
-                className={`w-full ${errors.reference ? "border-red-500" : ""}`}
-              />
+    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto">
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Date of Birth Correction Request Form</CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {submitStatus === "success" && (
+            <Alert className="bg-green-50 text-green-800 border-green-200">
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>Form submitted successfully!</AlertDescription>
+            </Alert>
+          )}
+          {submitStatus === "error" && (
+            <Alert className="bg-red-50 text-red-800 border-red-200">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Please correct the errors in the form.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="reference" className="flex justify-between">
+              Reference Number
               {errors.reference && (
                 <span className="text-red-500 text-sm">{errors.reference}</span>
               )}
-            </div>
-            <DatePickerField
-              label="Date"
-              value={formData.date}
-              onChange={(date) => handleInputChange("date", date)}
-              error={errors.date}
+            </Label>
+            <Input
+              id="reference"
+              value={formData.reference}
+              onChange={(e) => handleInputChange("reference", e.target.value)}
+              className={errors.reference ? "border-red-500" : ""}
+              placeholder="Enter reference number"
             />
           </div>
 
-          {/* Request Type Section */}
           <div className="space-y-2">
-            <Label>Request Type</Label>
-            <div className="flex space-x-4">
+            <Label className="flex justify-between">
+              Date
+              {errors.date && (
+                <span className="text-red-500 text-sm">{errors.date}</span>
+              )}
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`w-full justify-start text-left font-normal ${
+                    errors.date ? "border-red-500" : ""
+                  }`}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.date ? format(formData.date, "PPP") : "Select date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={formData.date}
+                  onSelect={(date) => handleInputChange("date", date)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* MDA Field */}
+          <div className="space-y-2">
+            <Label htmlFor="mda" className="flex justify-between">
+              MDA (Ministry, Department or Agency)
+              {errors.mda && (
+                <span className="text-red-500 text-sm">{errors.mda}</span>
+              )}
+            </Label>
+            <Input
+              id="mda"
+              value={formData.mda}
+              onChange={(e) => handleInputChange("mda", e.target.value)}
+              className={errors.mda ? "border-red-500" : ""}
+              placeholder="Enter MDA"
+            />
+          </div>
+
+          {/* Address Field */}
+          <div className="space-y-2">
+            <Label htmlFor="address" className="flex justify-between">
+              Address on Letter
+              {errors.address && (
+                <span className="text-red-500 text-sm">{errors.address}</span>
+              )}
+            </Label>
+            <Textarea
+              id="address"
+              value={formData.address}
+              onChange={(e) => handleInputChange("address", e.target.value)}
+              className={errors.address ? "border-red-500" : ""}
+              placeholder="Enter address for the letter"
+              rows={3}
+            />
+          </div>
+
+          {/* Recipient Select Field */}
+          <div className="space-y-2">
+            <Label htmlFor="recipient" className="flex justify-between">
+              Letter Recipient
+              {errors.recipient && (
+                <span className="text-red-500 text-sm">{errors.recipient}</span>
+              )}
+            </Label>
+            <Select
+              value={formData.recipient}
+              onValueChange={(value) => handleInputChange("recipient", value)}
+            >
+              <SelectTrigger
+                className={errors.recipient ? "border-red-500" : ""}
+              >
+                <SelectValue placeholder="Select recipient" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dg">The Director General</SelectItem>
+                <SelectItem value="ps">The Permanent Secretary</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex justify-between">
+              Request Type
+              {errors.requestType && (
+                <span className="text-red-500 text-sm">
+                  {errors.requestType}
+                </span>
+              )}
+            </Label>
+            <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="single"
@@ -277,137 +597,255 @@ const DOBCorrectionForm = () => {
             </div>
           </div>
 
-          {/* Correction Entries */}
-          {formData.corrections.map((correction, index) => (
-            <div
-              key={index}
-              className="space-y-6 p-4 border rounded-lg relative"
-            >
-              {formData.requestType.multiple &&
-                formData.corrections.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeCorrectionEntry(index)}
-                    className="absolute top-2 right-2"
-                    aria-label="Remove entry"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor={`name-${index}`}>Name</Label>
-                  <Input
-                    id={`name-${index}`}
-                    value={correction.name}
-                    onChange={(e) =>
-                      handleCorrectionChange(index, "name", e.target.value)
-                    }
-                    className={errors[`name-${index}`] ? "border-red-500" : ""}
-                  />
-                  {errors[`name-${index}`] && (
-                    <span className="text-red-500 text-sm">
-                      {errors[`name-${index}`]}
-                    </span>
+          {formData.dobEntries.map((entry, index) => (
+            <div key={index} className="space-y-6 p-4 border rounded-lg">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">
+                  DOB Correction Entry #{index + 1}
+                </h3>
+                {formData.requestType.multiple &&
+                  formData.dobEntries.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeDOBEntry(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   )}
-                </div>
-                <div>
-                  <Label htmlFor={`ippis-${index}`}>IPPIS Number</Label>
-                  <Input
-                    id={`ippis-${index}`}
-                    value={correction.ippis}
-                    onChange={(e) =>
-                      handleCorrectionChange(index, "ippis", e.target.value)
-                    }
-                    className={errors[`ippis-${index}`] ? "border-red-500" : ""}
-                  />
-                  {errors[`ippis-${index}`] && (
-                    <span className="text-red-500 text-sm">
-                      {errors[`ippis-${index}`]}
-                    </span>
-                  )}
-                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <DatePickerField
-                  label="Previous DOB"
-                  value={correction.previousDOB}
-                  onChange={(date) =>
-                    handleCorrectionChange(index, "previousDOB", date)
-                  }
-                  error={errors[`previousDOB-${index}`]}
-                />
-                <DatePickerField
-                  label="New DOB"
-                  value={correction.newDOB}
-                  onChange={(date) =>
-                    handleCorrectionChange(index, "newDOB", date)
-                  }
-                  error={errors[`newDOB-${index}`]}
-                />
-              </div>
-
-              {/* Supporting Documents */}
               <div className="space-y-2">
-                <Label>Supporting Documents</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  {supportingDocuments.map((doc) => (
-                    <div key={doc.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`${doc.id}-${index}`}
-                        checked={correction.documents[doc.id]}
-                        onCheckedChange={(checked) =>
-                          handleDocumentChange(index, doc.id, checked)
+                <Label
+                  htmlFor={`name_${index}`}
+                  className="flex justify-between"
+                >
+                  Name
+                  {errors[`name_${index}`] && (
+                    <span className="text-red-500 text-sm">
+                      {errors[`name_${index}`]}
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  id={`name_${index}`}
+                  value={entry.name}
+                  onChange={(e) =>
+                    handleDOBEntryChange(index, "name", e.target.value)
+                  }
+                  className={errors[`name_${index}`] ? "border-red-500" : ""}
+                  placeholder="Enter name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor={`ippisNumber_${index}`}
+                  className="flex justify-between"
+                >
+                  IPPIS Number
+                  {errors[`ippisNumber_${index}`] && (
+                    <span className="text-red-500 text-sm">
+                      {errors[`ippisNumber_${index}`]}
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  id={`ippisNumber_${index}`}
+                  value={entry.ippisNumber}
+                  onChange={(e) =>
+                    handleDOBEntryChange(index, "ippisNumber", e.target.value)
+                  }
+                  className={
+                    errors[`ippisNumber_${index}`] ? "border-red-500" : ""
+                  }
+                  placeholder="Enter IPPIS Number"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex justify-between">
+                    Previous DOB
+                    {errors[`previousDOB_${index}`] && (
+                      <span className="text-red-500 text-sm">
+                        {errors[`previousDOB_${index}`]}
+                      </span>
+                    )}
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={`w-full justify-start text-left font-normal ${
+                          errors[`previousDOB_${index}`] ? "border-red-500" : ""
+                        }`}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {entry.previousDOB
+                          ? format(entry.previousDOB, "PPP")
+                          : "Select previous DOB"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={entry.previousDOB}
+                        onSelect={(date) =>
+                          handleDOBEntryChange(index, "previousDOB", date)
                         }
+                        initialFocus
                       />
-                      <Label htmlFor={`${doc.id}-${index}`}>{doc.label}</Label>
-                    </div>
-                  ))}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex justify-between">
+                    New DOB
+                    {errors[`newDOB_${index}`] && (
+                      <span className="text-red-500 text-sm">
+                        {errors[`newDOB_${index}`]}
+                      </span>
+                    )}
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={`w-full justify-start text-left font-normal ${
+                          errors[`newDOB_${index}`] ? "border-red-500" : ""
+                        }`}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {entry.newDOB
+                          ? format(entry.newDOB, "PPP")
+                          : "Select new DOB"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={entry.newDOB}
+                        onSelect={(date) =>
+                          handleDOBEntryChange(index, "newDOB", date)
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor={`other-docs-${index}`}>
+              <div className="space-y-2">
+                <Label className="flex justify-between">
+                  Supporting Documents
+                  {errors[`supportingDocs_${index}`] && (
+                    <span className="text-red-500 text-sm">
+                      {errors[`supportingDocs_${index}`]}
+                    </span>
+                  )}
+                </Label>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`dob_${index}`}
+                      checked={entry.supportingDocs.dob}
+                      onCheckedChange={() =>
+                        handleSupportingDocsChange(index, "dob")
+                      }
+                    />
+                    <Label htmlFor={`dob_${index}`}>Birth Certificate</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`payslip_${index}`}
+                      checked={entry.supportingDocs.payslip}
+                      onCheckedChange={() =>
+                        handleSupportingDocsChange(index, "payslip")
+                      }
+                    />
+                    <Label htmlFor={`payslip_${index}`}>Payslip</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`primary_${index}`}
+                      checked={entry.supportingDocs.primary}
+                      onCheckedChange={() =>
+                        handleSupportingDocsChange(index, "primary")
+                      }
+                    />
+                    <Label htmlFor={`primary_${index}`}>
+                      Primary School Certificate
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`service_${index}`}
+                      checked={entry.supportingDocs.service}
+                      onCheckedChange={() =>
+                        handleSupportingDocsChange(index, "service")
+                      }
+                    />
+                    <Label htmlFor={`service_${index}`}>
+                      Record of Service
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor={`otherSupportingDocs_${index}`}>
                   Other Supporting Documents
                 </Label>
                 <Input
-                  id={`other-docs-${index}`}
-                  value={correction.otherDocuments}
+                  id={`otherSupportingDocs_${index}`}
+                  value={entry.otherSupportingDocs}
                   onChange={(e) =>
-                    handleCorrectionChange(
+                    handleDOBEntryChange(
                       index,
-                      "otherDocuments",
+                      "otherSupportingDocs",
                       e.target.value
                     )
                   }
-                />
-              </div>
-
-              <div>
-                <Label htmlFor={`observation-${index}`}>Observation</Label>
-                <Input
-                  id={`observation-${index}`}
-                  value={correction.observation}
-                  onChange={(e) =>
-                    handleCorrectionChange(index, "observation", e.target.value)
-                  }
+                  placeholder="Enter any other supporting documents"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Remark</Label>
+                <Label htmlFor={`observation_${index}`}>Observation</Label>
+                <Input
+                  id={`observation_${index}`}
+                  value={entry.observation}
+                  onChange={(e) =>
+                    handleDOBEntryChange(index, "observation", e.target.value)
+                  }
+                  placeholder="Enter observation"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex justify-between">
+                  Remarks
+                  {errors[`remarks_${index}`] && (
+                    <span className="text-red-500 text-sm">
+                      {errors[`remarks_${index}`]}
+                    </span>
+                  )}
+                </Label>
                 <Select
-                  value={correction.remark}
+                  value={entry.remarks}
                   onValueChange={(value) =>
-                    handleCorrectionChange(index, "remark", value)
+                    handleDOBEntryChange(index, "remarks", value)
                   }
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a remark" />
+                  <SelectTrigger
+                    className={
+                      errors[`remarks_${index}`] ? "border-red-500" : ""
+                    }
+                  >
+                    <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="approve">Approve</SelectItem>
@@ -421,33 +859,37 @@ const DOBCorrectionForm = () => {
           {formData.requestType.multiple && (
             <Button
               type="button"
-              onClick={addCorrectionEntry}
+              variant="outline"
               className="w-full"
+              onClick={addDOBEntry}
             >
-              Add Another Correction
+              <Plus className="h-4 w-4 mr-2" />
+              Add Another DOB Correction
             </Button>
           )}
+        </CardContent>
 
-          <Button type="submit" className="w-full">
-            Submit Form
+        <CardFooter className="flex justify-end space-x-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setFormData({
+                reference: "",
+                date: null,
+                requestType: { single: true, multiple: false },
+                dobEntries: [{ ...emptyDOBEntry }],
+              });
+              setErrors({});
+              setSubmitStatus(null);
+            }}
+          >
+            Cancel
           </Button>
-        </form>
-
-        {showSuccess && (
-          <Alert className="mt-4 bg-green-100">
-            <AlertDescription>Form submitted successfully!</AlertDescription>
-          </Alert>
-        )}
-
-        {showError && (
-          <Alert className="mt-4 bg-red-100">
-            <AlertDescription>
-              Please fill in all required fields correctly.
-            </AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-    </Card>
+          <Button type="submit">Submit</Button>
+        </CardFooter>
+      </Card>
+    </form>
   );
 };
 

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 // Reusable date picker component
 const DatePickerField = ({ value, onChange, label, error }) => (
@@ -92,6 +93,9 @@ const DOFACorrectionForm = () => {
   const [formData, setFormData] = useState({
     reference: "",
     date: null,
+    mda: "",
+    address: "",
+    recipient: "",
     requestType: {
       single: true,
       multiple: false,
@@ -188,6 +192,15 @@ const DOFACorrectionForm = () => {
     if (!formData.date) {
       newErrors.date = "Date is required";
     }
+    if (!formData.mda) {
+      newErrors.mda = "MDA is required";
+    }
+    if (!formData.address) {
+      newErrors.address = "Address is required";
+    }
+    if (!formData.recipient) {
+      newErrors.recipient = "Recipient is required";
+    }
 
     formData.entries.forEach((entry, index) => {
       if (!entry.name) newErrors[`name-${index}`] = "Name is required";
@@ -225,6 +238,9 @@ const DOFACorrectionForm = () => {
       setFormData({
         reference: "",
         date: null,
+        mda: "",
+        address: "",
+        recipient: "",
         requestType: {
           single: true,
           multiple: false,
@@ -264,6 +280,65 @@ const DOFACorrectionForm = () => {
               onChange={(date) => handleInputChange("date", date)}
               error={errors.date}
             />
+          </div>
+
+          {/* MDA Field */}
+          <div className="space-y-2">
+            <Label htmlFor="mda" className="flex justify-between">
+              MDA (Ministry, Department or Agency)
+              {errors.mda && (
+                <span className="text-red-500 text-sm">{errors.mda}</span>
+              )}
+            </Label>
+            <Input
+              id="mda"
+              value={formData.mda}
+              onChange={(e) => handleInputChange("mda", e.target.value)}
+              className={errors.mda ? "border-red-500" : ""}
+              placeholder="Enter MDA"
+            />
+          </div>
+
+          {/* Address Field */}
+          <div className="space-y-2">
+            <Label htmlFor="address" className="flex justify-between">
+              Address on Letter
+              {errors.address && (
+                <span className="text-red-500 text-sm">{errors.address}</span>
+              )}
+            </Label>
+            <Textarea
+              id="address"
+              value={formData.address}
+              onChange={(e) => handleInputChange("address", e.target.value)}
+              className={errors.address ? "border-red-500" : ""}
+              placeholder="Enter address for the letter"
+              rows={3}
+            />
+          </div>
+
+          {/* Recipient Select Field */}
+          <div className="space-y-2">
+            <Label htmlFor="recipient" className="flex justify-between">
+              Letter Recipient
+              {errors.recipient && (
+                <span className="text-red-500 text-sm">{errors.recipient}</span>
+              )}
+            </Label>
+            <Select
+              value={formData.recipient}
+              onValueChange={(value) => handleInputChange("recipient", value)}
+            >
+              <SelectTrigger
+                className={errors.recipient ? "border-red-500" : ""}
+              >
+                <SelectValue placeholder="Select recipient" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dg">The Director General</SelectItem>
+                <SelectItem value="ps">The Permanent Secretary</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Request Type Selection */}

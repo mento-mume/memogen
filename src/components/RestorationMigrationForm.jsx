@@ -1,253 +1,3 @@
-// import  { useState } from 'react';
-// //import { useForm } from 'react-hook-form';
-// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-// import { Input } from '@/components/ui/input';
-// import { Button } from '@/components/ui/button';
-// import { Checkbox } from '@/components/ui/checkbox';
-// import { Label } from '@/components/ui/label';
-// import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-// import { Alert, AlertDescription } from '@/components/ui/alert';
-// //import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-// import { PlusCircle, X } from 'lucide-react';
-
-// const RestoreForm = () => {
-//   const [requestType, setRequestType] = useState('single');
-//   const [multipleEntries, setMultipleEntries] = useState([]);
-//   const [submitted, setSubmitted] = useState(false);
-//   const [error, setError] = useState('');
-
-//   const supportingDocOptions = [
-//     { id: 'posting', label: 'Posting Instruction' },
-//     { id: 'payslip', label: 'Payslip' },
-//     { id: 'assumption', label: 'Assumption of Duty' },
-//     { id: 'idcard', label: 'ID Card' }
-//   ];
-
-//   const defaultEntry = {
-//     name: '',
-//     ippisNumber: '',
-//     previousMDA: '',
-//     newMDA: '',
-//     supportingDocs: [],
-//     otherDocs: '',
-//     observation: '',
-//     remark: ''
-//   };
-
-//   const handleSubmit = (e) => {
-//     e.preventDefault();
-
-//     // Basic validation
-//     if (!document.getElementById('referenceNumber').value) {
-//       setError('Reference number is required');
-//       return;
-//     }
-
-//     // Submit logic would go here
-//     setSubmitted(true);
-//     setError('');
-//   };
-
-//   const addNewEntry = () => {
-//     setMultipleEntries([...multipleEntries, { ...defaultEntry }]);
-//   };
-
-//   const removeEntry = (index) => {
-//     const newEntries = multipleEntries.filter((_, i) => i !== index);
-//     setMultipleEntries(newEntries);
-//   };
-
-//   const SingleEntryForm = ({ isMultiple = false, index = 0, onRemove = null }) => (
-//     <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-//       {isMultiple && (
-//         <div className="flex justify-between items-center">
-//           <h3 className="text-lg font-medium">Entry {index + 1}</h3>
-//           <Button
-//             variant="ghost"
-//             size="sm"
-//             onClick={() => onRemove(index)}
-//             className="text-red-500"
-//           >
-//             <X className="h-4 w-4" />
-//           </Button>
-//         </div>
-//       )}
-
-//       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//         <div className="space-y-2">
-//           <Label htmlFor={`name-${index}`}>Name</Label>
-//           <Input
-//             id={`name-${index}`}
-//             placeholder="Enter full name"
-//             className="w-full"
-//           />
-//         </div>
-
-//         <div className="space-y-2">
-//           <Label htmlFor={`ippis-${index}`}>IPPIS Number</Label>
-//           <Input
-//             id={`ippis-${index}`}
-//             placeholder="Enter IPPIS number"
-//             className="w-full"
-//           />
-//         </div>
-
-//         <div className="space-y-2">
-//           <Label htmlFor={`previousMDA-${index}`}>Previous MDA</Label>
-//           <Input
-//             id={`previousMDA-${index}`}
-//             placeholder="Enter previous MDA"
-//             className="w-full"
-//           />
-//         </div>
-
-//         <div className="space-y-2">
-//           <Label htmlFor={`newMDA-${index}`}>New MDA</Label>
-//           <Input
-//             id={`newMDA-${index}`}
-//             placeholder="Enter new MDA"
-//             className="w-full"
-//           />
-//         </div>
-//       </div>
-
-//       <div className="space-y-4">
-//         <Label>Supporting Documents</Label>
-//         <div className="grid grid-cols-2 gap-4">
-//           {supportingDocOptions.map((doc) => (
-//             <div key={doc.id} className="flex items-center space-x-2">
-//               <Checkbox id={`${doc.id}-${index}`} />
-//               <Label htmlFor={`${doc.id}-${index}`}>{doc.label}</Label>
-//             </div>
-//           ))}
-//         </div>
-//       </div>
-
-//       <div className="space-y-2">
-//         <Label htmlFor={`otherDocs-${index}`}>Other Supporting Documents</Label>
-//         <Input
-//           id={`otherDocs-${index}`}
-//           placeholder="Specify other documents"
-//           className="w-full"
-//         />
-//       </div>
-
-//       <div className="space-y-2">
-//         <Label htmlFor={`observation-${index}`}>Observation</Label>
-//         <Input
-//           id={`observation-${index}`}
-//           placeholder="Enter observations"
-//           className="w-full"
-//         />
-//       </div>
-
-//       <div className="space-y-2">
-//         <Label>Remark</Label>
-//         <RadioGroup defaultValue="approve" className="flex space-x-4">
-//           <div className="flex items-center space-x-2">
-//             <RadioGroupItem value="approve" id={`approve-${index}`} />
-//             <Label htmlFor={`approve-${index}`}>Approve</Label>
-//           </div>
-//           <div className="flex items-center space-x-2">
-//             <RadioGroupItem value="reject" id={`reject-${index}`} />
-//             <Label htmlFor={`reject-${index}`}>Reject</Label>
-//           </div>
-//         </RadioGroup>
-//       </div>
-//     </div>
-//   );
-
-//   return (
-//     <Card className="w-full max-w-4xl mx-auto">
-//       <CardHeader>
-//         <CardTitle>Restoration and Migration Form</CardTitle>
-//       </CardHeader>
-//       <CardContent>
-//         <form onSubmit={handleSubmit} className="space-y-6">
-//           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//             <div className="space-y-2">
-//               <Label htmlFor="referenceNumber">Reference Number</Label>
-//               <Input
-//                 id="referenceNumber"
-//                 placeholder="Enter reference number"
-//                 className="w-full"
-//               />
-//             </div>
-
-//             <div className="space-y-2">
-//               <Label htmlFor="date">Date</Label>
-//               <Input
-//                 id="date"
-//                 type="date"
-//                 className="w-full"
-//               />
-//             </div>
-//           </div>
-
-//           <div className="space-y-2">
-//             <Label>Request Type</Label>
-//             <RadioGroup
-//               defaultValue="single"
-//               className="flex space-x-4"
-//               onValueChange={setRequestType}
-//             >
-//               <div className="flex items-center space-x-2">
-//                 <RadioGroupItem value="single" id="single" />
-//                 <Label htmlFor="single">Single</Label>
-//               </div>
-//               <div className="flex items-center space-x-2">
-//                 <RadioGroupItem value="multiple" id="multiple" />
-//                 <Label htmlFor="multiple">Multiple</Label>
-//               </div>
-//             </RadioGroup>
-//           </div>
-
-//           {requestType === 'single' ? (
-//             <SingleEntryForm />
-//           ) : (
-//             <div className="space-y-4">
-//               {multipleEntries.map((entry, index) => (
-//                 <SingleEntryForm
-//                   key={index}
-//                   isMultiple={true}
-//                   index={index}
-//                   onRemove={removeEntry}
-//                 />
-//               ))}
-//               <Button
-//                 type="button"
-//                 onClick={addNewEntry}
-//                 className="w-full"
-//                 variant="outline"
-//               >
-//                 <PlusCircle className="h-4 w-4 mr-2" />
-//                 Add New Entry
-//               </Button>
-//             </div>
-//           )}
-
-//           {error && (
-//             <Alert variant="destructive">
-//               <AlertDescription>{error}</AlertDescription>
-//             </Alert>
-//           )}
-
-//           {submitted && (
-//             <Alert className="bg-green-50 text-green-700">
-//               <AlertDescription>Form submitted successfully!</AlertDescription>
-//             </Alert>
-//           )}
-
-//           <Button type="submit" className="w-full">
-//             Submit Form
-//           </Button>
-//         </form>
-//       </CardContent>
-//     </Card>
-//   );
-// };
-
-// export default RestoreForm;
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -271,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 // A reusable date picker component that provides a calendar interface for selecting dates
 // It includes validation and error handling capabilities
@@ -337,6 +88,9 @@ const RestorationMigrationForm = () => {
   const [formData, setFormData] = useState({
     reference: "",
     date: null,
+    mda: "",
+    address: "",
+    recipient: "",
     requestType: {
       single: true,
       multiple: false,
@@ -440,6 +194,15 @@ const RestorationMigrationForm = () => {
     if (!formData.date) {
       newErrors.date = "Date is required";
     }
+    if (!formData.mda) {
+      newErrors.mda = "MDA is required";
+    }
+    if (!formData.address) {
+      newErrors.address = "Address is required";
+    }
+    if (!formData.recipient) {
+      newErrors.recipient = "Recipient is required";
+    }
 
     // Validate each entry
     formData.entries.forEach((entry, index) => {
@@ -467,6 +230,9 @@ const RestorationMigrationForm = () => {
       setFormData({
         reference: "",
         date: null,
+        mda: "",
+        address: "",
+        recipient: "",
         requestType: {
           single: true,
           multiple: false,
@@ -506,6 +272,65 @@ const RestorationMigrationForm = () => {
               onChange={(date) => handleInputChange("date", date)}
               error={errors.date}
             />
+          </div>
+
+          {/* MDA Field */}
+          <div className="space-y-2">
+            <Label htmlFor="mda" className="flex justify-between">
+              MDA (Ministry, Department or Agency)
+              {errors.mda && (
+                <span className="text-red-500 text-sm">{errors.mda}</span>
+              )}
+            </Label>
+            <Input
+              id="mda"
+              value={formData.mda}
+              onChange={(e) => handleInputChange("mda", e.target.value)}
+              className={errors.mda ? "border-red-500" : ""}
+              placeholder="Enter MDA"
+            />
+          </div>
+
+          {/* Address Field */}
+          <div className="space-y-2">
+            <Label htmlFor="address" className="flex justify-between">
+              Address on Letter
+              {errors.address && (
+                <span className="text-red-500 text-sm">{errors.address}</span>
+              )}
+            </Label>
+            <Textarea
+              id="address"
+              value={formData.address}
+              onChange={(e) => handleInputChange("address", e.target.value)}
+              className={errors.address ? "border-red-500" : ""}
+              placeholder="Enter address for the letter"
+              rows={3}
+            />
+          </div>
+
+          {/* Recipient Select Field */}
+          <div className="space-y-2">
+            <Label htmlFor="recipient" className="flex justify-between">
+              Letter Recipient
+              {errors.recipient && (
+                <span className="text-red-500 text-sm">{errors.recipient}</span>
+              )}
+            </Label>
+            <Select
+              value={formData.recipient}
+              onValueChange={(value) => handleInputChange("recipient", value)}
+            >
+              <SelectTrigger
+                className={errors.recipient ? "border-red-500" : ""}
+              >
+                <SelectValue placeholder="Select recipient" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dg">The Director General</SelectItem>
+                <SelectItem value="ps">The Permanent Secretary</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Request Type Selection */}

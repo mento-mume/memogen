@@ -1,4 +1,8 @@
 import { useState } from "react";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
+import { saveAs } from "file-saver";
+
 import {
   Card,
   CardHeader,
@@ -32,31 +36,391 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
-// Initial empty name entry object
+// Initial empty name entry object - now includes IPPIS number and otherSupportingDocs
 const emptyNameEntry = {
   previousName: "",
   newName: "",
+  ippisNumber: "",
   supportingDocs: {
     newspaper: false,
     marriageCert: false,
     courtAffidavit: false,
   },
+  otherSupportingDocs: "", // Added field for other supporting documents
   observation: "",
   remarks: "",
 };
+
+// const generateDocument = async (data) => {
+//   try {
+//     // Determine which template to use based on the request type
+//     const templatePath = data.requestType.multiple
+//       ? "/CON_Template_multiple.docx"
+//       : "/CON_Template_single.docx";
+
+//     // Fetch the appropriate template
+//     const response = await fetch(templatePath);
+//     const arrayBuffer = await response.arrayBuffer();
+//     const zip = new PizZip(arrayBuffer);
+
+//     // Create a new instance of Docxtemplater
+//     const doc = new Docxtemplater(zip, {
+//       paragraphLoop: true,
+//       linebreaks: true,
+//     });
+
+//     // Format the supporting documents as a comma-separated string
+//     const getSupportingDocsList = (entry) => {
+//       const docs = [];
+//       if (entry.supportingDocs.newspaper) docs.push("Newspaper publication");
+//       if (entry.supportingDocs.marriageCert) docs.push("Marriage Certificate");
+//       if (entry.supportingDocs.courtAffidavit) docs.push("Court Affidavit");
+
+//       // Add other supporting documents if provided
+//       if (entry.otherSupportingDocs.trim()) {
+//         docs.push(entry.otherSupportingDocs);
+//       }
+
+//       return docs.join(", ");
+//     };
+
+//     // Format current date
+//     const formatDate = (date) => {
+//       return format(date || new Date(), "do MMMM, yyyy");
+//     };
+
+//     // Get effective month (next month from current date)
+//     const getEffectiveMonth = () => {
+//       const nextMonth = new Date();
+//       nextMonth.setMonth(nextMonth.getMonth() + 1);
+//       return format(nextMonth, "MMMM yyyy");
+//     };
+
+//     // Common data for both single and multiple templates
+
+//     const commonData = {
+//       referenceNumber: data.reference,
+//       requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
+//       mda: data.mda || "N/A",
+//       address: data.address || "N/A", // Address is already included
+//       recipient:
+//         data.recipient === "dg"
+//           ? "The Director General"
+//           : "The Permanent Secretary", // Add recipient
+//       date: formatDate(new Date()),
+//       effectiveMonth: getEffectiveMonth(),
+//     };
+
+//     let templateData = {};
+
+//     if (data.requestType.multiple) {
+//       // Prepare entries for the table loop
+//       // This works with any number of entries, not just limited to 2
+//       const detailedEntries = data.nameEntries.map((entry, index) => ({
+//         sn: getLetterForIndex(index),
+//         ippisNumber: entry.ippisNumber || "N/A",
+//         previousName: entry.previousName,
+//         newName: entry.newName,
+//         supportingDocsList: getSupportingDocsList(entry),
+//         observation: entry.observation || "No observation",
+//         remark: entry.remarks === "approve" ? "Approved" : "Rejected",
+//       }));
+
+//       templateData = {
+//         ...commonData,
+//         entries: detailedEntries,
+//         summaryRows: detailedEntries.map((entry) => ({
+//           sn: entry.sn,
+//           ippisNumber: entry.ippisNumber,
+//           oldName: entry.previousName,
+//           newName: entry.newName,
+//         })),
+//       };
+//     } else {
+//       // For single entry
+//       const nameEntry = data.nameEntries[0];
+
+//       templateData = {
+//         ...commonData,
+//         previousName: nameEntry.previousName,
+//         newName: nameEntry.newName,
+//         ippisNumberFinal: nameEntry.ippisNumber || "N/A",
+//         supportingDocsList: getSupportingDocsList(nameEntry),
+//         observation: nameEntry.observation || "No observation",
+//         remark: nameEntry.remarks === "approve" ? "Approved" : "Rejected",
+//       };
+//     }
+//     console.log(templateData);
+//     // Set the template data
+//     doc.setData(templateData);
+
+//     // Render the document
+//     doc.render();
+
+//     // Get the binary content of the output document
+//     const output = doc.getZip().generate({
+//       type: "blob",
+//       mimeType:
+//         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+//     });
+
+//     // Save the document
+//     const fileName = data.requestType.multiple
+//       ? `Name_Change_Request_Multiple_Entries.docx`
+//       : `Name_Change_Request_${data.nameEntries[0].previousName}_to_${data.nameEntries[0].newName}.docx`;
+
+//     saveAs(output, fileName);
+
+//     return true;
+//   } catch (error) {
+//     console.error("Error generating document:", error);
+//     return false;
+//   }
+// };
+const generateDocument = async (data) => {
+  try {
+    // Check the request type and approval status
+    const isSingleRequest = !data.requestType.multiple;
+
+    // For single requests
+    let templatePath;
+    let fileName;
+
+    if (isSingleRequest) {
+      // Single request - check if approved or rejected
+      const isApproved = data.nameEntries[0].remarks === "approve";
+      templatePath = isApproved
+        ? "/CON_Template_single.docx"
+        : "/CON_Template_single_rejected.docx";
+
+      const status = isApproved ? "Approved" : "Rejected";
+      fileName = `Name_Change_Request_${data.nameEntries[0].previousName}_to_${data.nameEntries[0].newName}_${status}.docx`;
+    } else {
+      // Multiple requests - check if all approved, all rejected, or mixed
+      const allApproved = data.nameEntries.every(
+        (entry) => entry.remarks === "approve"
+      );
+      const allRejected = data.nameEntries.every(
+        (entry) => entry.remarks === "reject"
+      );
+
+      if (allApproved) {
+        templatePath = "/CON_Template_multiple_all_approved.docx";
+        fileName = "Name_Change_Request_Multiple_Entries_All_Approved.docx";
+      } else if (allRejected) {
+        templatePath = "/CON_Template_multiple_all_rejected.docx";
+        fileName = "Name_Change_Request_Multiple_Entries_All_Rejected.docx";
+      } else {
+        templatePath = "/CON_Template_multiple_mixed.docx";
+        fileName = "Name_Change_Request_Multiple_Entries_Mixed.docx";
+      }
+    }
+
+    // Fetch the appropriate template
+    const response = await fetch(templatePath);
+    const arrayBuffer = await response.arrayBuffer();
+    const zip = new PizZip(arrayBuffer);
+
+    // Create a new instance of Docxtemplater
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+    });
+
+    // Format the supporting documents as a comma-separated string
+    const getSupportingDocsList = (entry) => {
+      const docs = [];
+      if (entry.supportingDocs.newspaper) docs.push("Newspaper publication");
+      if (entry.supportingDocs.marriageCert) docs.push("Marriage Certificate");
+      if (entry.supportingDocs.courtAffidavit) docs.push("Court Affidavit");
+
+      // Add other supporting documents if provided
+      if (entry.otherSupportingDocs.trim()) {
+        docs.push(entry.otherSupportingDocs);
+      }
+
+      return docs.join(", ");
+    };
+
+    // Format current date
+    const formatDate = (date) => {
+      return format(date || new Date(), "do MMMM, yyyy");
+    };
+
+    // Get effective month (next month from current date)
+    const getEffectiveMonth = () => {
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      return format(nextMonth, "MMMM yyyy");
+    };
+
+    // Common data for all templates
+    const commonData = {
+      referenceNumber: data.reference,
+      requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
+      mda: data.mda || "N/A",
+      address: data.address || "N/A",
+      recipient:
+        data.recipient === "dg"
+          ? "The Director General"
+          : "The Permanent Secretary",
+      date: formatDate(new Date()),
+      effectiveMonth: getEffectiveMonth(),
+    };
+
+    let templateData = {};
+
+    if (isSingleRequest) {
+      // For single entry
+      const nameEntry = data.nameEntries[0];
+      const isApproved = nameEntry.remarks === "approve";
+
+      templateData = {
+        ...commonData,
+        previousName: nameEntry.previousName,
+        newName: nameEntry.newName,
+        ippisNumberFinal: nameEntry.ippisNumber || "N/A",
+        supportingDocsList: getSupportingDocsList(nameEntry),
+        observation: nameEntry.observation || "No observation",
+        remark: isApproved ? "Approved" : "Rejected",
+        isApproved: isApproved,
+        reasonForRejection: isApproved
+          ? ""
+          : nameEntry.observation || "Incomplete documentation",
+      };
+    } else {
+      // For multiple entries
+      // Prepare all entries for reference
+      const detailedEntries = data.nameEntries.map((entry, index) => ({
+        sn: getLetterForIndex(index),
+        ippisNumber: entry.ippisNumber || "N/A",
+        previousName: entry.previousName,
+        newName: entry.newName,
+        supportingDocsList: getSupportingDocsList(entry),
+        observation: entry.observation || "No observation",
+        remark: entry.remarks === "approve" ? "Approved" : "Rejected",
+        isApproved: entry.remarks === "approve",
+      }));
+
+      // Check if all approved, all rejected, or mixed
+      const allApproved = data.nameEntries.every(
+        (entry) => entry.remarks === "approve"
+      );
+      const allRejected = data.nameEntries.every(
+        (entry) => entry.remarks === "reject"
+      );
+
+      if (allApproved || allRejected) {
+        // Simple case: all entries have the same status
+        templateData = {
+          ...commonData,
+          entries: detailedEntries,
+          allApproved: allApproved,
+          summaryRows: detailedEntries.map((entry) => ({
+            sn: entry.sn,
+            ippisNumber: entry.ippisNumber,
+            oldName: entry.previousName,
+            newName: entry.newName,
+          })),
+        };
+      } else {
+        // Mixed case: separate approved and rejected entries
+        const approvedEntries = data.nameEntries
+          .filter((entry) => entry.remarks === "approve")
+          .map((entry, index) => ({
+            sn: getLetterForIndex(index),
+            ippisNumber: entry.ippisNumber || "N/A",
+            previousName: entry.previousName,
+            newName: entry.newName,
+            supportingDocsList: getSupportingDocsList(entry),
+            observation: entry.observation || "No observation",
+            remark: "Approved",
+          }));
+
+        const rejectedEntries = data.nameEntries
+          .filter((entry) => entry.remarks === "reject")
+          .map((entry, index) => ({
+            sn: getLetterForIndex(index),
+            ippisNumber: entry.ippisNumber || "N/A",
+            previousName: entry.previousName,
+            newName: entry.newName,
+            supportingDocsList: getSupportingDocsList(entry),
+            observation: entry.observation || "No observation",
+            remark: "Rejected",
+          }));
+
+        templateData = {
+          ...commonData,
+          entries: detailedEntries, // All entries for reference
+          approvedEntries: approvedEntries, // Only approved entries
+          rejectedEntries: rejectedEntries, // Only rejected entries
+          hasApproved: approvedEntries.length > 0,
+          hasRejected: rejectedEntries.length > 0,
+
+          // Summary tables for approved and rejected
+          approvedSummary: approvedEntries.map((entry) => ({
+            sn: entry.sn,
+            ippisNumber: entry.ippisNumber,
+            oldName: entry.previousName,
+            newName: entry.newName,
+          })),
+          rejectedSummary: rejectedEntries.map((entry) => ({
+            sn: entry.sn,
+            ippisNumber: entry.ippisNumber,
+            oldName: entry.previousName,
+            newName: entry.newName,
+          })),
+        };
+      }
+    }
+
+    console.log("Template data:", templateData);
+    console.log("Using template:", templatePath);
+
+    // Set the template data
+    doc.setData(templateData);
+
+    // Render the document
+    doc.render();
+
+    // Get the binary content of the output document
+    const output = doc.getZip().generate({
+      type: "blob",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+
+    // Save the document
+    saveAs(output, fileName);
+
+    return true;
+  } catch (error) {
+    console.error("Error generating document:", error);
+    return false;
+  }
+};
+// Helper function to convert index to letter (0 -> a, 1 -> b, etc.)
+function getLetterForIndex(index) {
+  return String.fromCharCode(97 + index); // 97 is ASCII for 'a'
+}
 
 const NameChangeForm = () => {
   // State to manage form data
   const [formData, setFormData] = useState({
     reference: "",
     date: null,
+    mda: "",
+    address: "",
+    recipient: "", // Add new recipient field
     requestType: {
       single: false,
       multiple: false,
     },
     nameEntries: [{ ...emptyNameEntry }],
   });
+  console.log(formData);
 
   // State to manage form errors
   const [errors, setErrors] = useState({});
@@ -146,8 +510,17 @@ const NameChangeForm = () => {
     if (!formData.date) {
       newErrors.date = "Date is required";
     }
+    if (!formData.mda) {
+      newErrors.mda = "MDA is required";
+    }
+    if (!formData.address) {
+      newErrors.address = "Address is required";
+    }
     if (!formData.requestType.single && !formData.requestType.multiple) {
       newErrors.requestType = "Please select a request type";
+    }
+    if (!formData.recipient) {
+      newErrors.recipient = "Recipient is required";
     }
 
     formData.nameEntries.forEach((entry, index) => {
@@ -157,7 +530,15 @@ const NameChangeForm = () => {
       if (!entry.newName) {
         newErrors[`newName_${index}`] = "New name is required";
       }
-      if (!Object.values(entry.supportingDocs).some(Boolean)) {
+      if (!entry.ippisNumber) {
+        newErrors[`ippisNumber_${index}`] = "IPPIS number is required";
+      }
+
+      // Check if at least one supporting document is selected or other supporting docs is provided
+      if (
+        !Object.values(entry.supportingDocs).some(Boolean) &&
+        !entry.otherSupportingDocs.trim()
+      ) {
         newErrors[`supportingDocs_${index}`] =
           "At least one supporting document is required";
       }
@@ -170,23 +551,31 @@ const NameChangeForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
     setSubmitStatus(null);
 
     if (validateForm()) {
-      setTimeout(() => {
-        setSubmitStatus("success");
-        setTimeout(() => {
-          setFormData({
-            reference: "",
-            date: null,
-            requestType: { single: false, multiple: false },
-            nameEntries: [{ ...emptyNameEntry }],
-          });
-          setSubmitStatus(null);
-        }, 3000);
+      setTimeout(async () => {
+        // Generate the document
+        const docGenerated = await generateDocument(formData);
+
+        setSubmitStatus(docGenerated ? "success" : "error");
+
+        if (docGenerated) {
+          setTimeout(() => {
+            setFormData({
+              reference: "",
+              date: null,
+              mda: "",
+              address: "",
+              recipient: "", // Reset recipient
+              requestType: { single: false, multiple: false },
+              nameEntries: [{ ...emptyNameEntry }],
+            });
+            setSubmitStatus(null);
+          }, 3000);
+        }
       }, 1000);
     } else {
       setSubmitStatus("error");
@@ -260,6 +649,65 @@ const NameChangeForm = () => {
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          {/* MDA Field */}
+          <div className="space-y-2">
+            <Label htmlFor="mda" className="flex justify-between">
+              MDA (Ministry, Department or Agency)
+              {errors.mda && (
+                <span className="text-red-500 text-sm">{errors.mda}</span>
+              )}
+            </Label>
+            <Input
+              id="mda"
+              value={formData.mda}
+              onChange={(e) => handleInputChange("mda", e.target.value)}
+              className={errors.mda ? "border-red-500" : ""}
+              placeholder="Enter MDA"
+            />
+          </div>
+
+          {/* Updated Address Field */}
+          <div className="space-y-2">
+            <Label htmlFor="address" className="flex justify-between">
+              Address on Letter
+              {errors.address && (
+                <span className="text-red-500 text-sm">{errors.address}</span>
+              )}
+            </Label>
+            <Textarea
+              id="address"
+              value={formData.address}
+              onChange={(e) => handleInputChange("address", e.target.value)}
+              className={errors.address ? "border-red-500" : ""}
+              placeholder="Enter address for the letter"
+              rows={3}
+            />
+          </div>
+
+          {/* Recipient Select Field */}
+          <div className="space-y-2">
+            <Label htmlFor="recipient" className="flex justify-between">
+              Letter Recipient
+              {errors.recipient && (
+                <span className="text-red-500 text-sm">{errors.recipient}</span>
+              )}
+            </Label>
+            <Select
+              value={formData.recipient}
+              onValueChange={(value) => handleInputChange("recipient", value)}
+            >
+              <SelectTrigger
+                className={errors.recipient ? "border-red-500" : ""}
+              >
+                <SelectValue placeholder="Select recipient" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dg">The Director General</SelectItem>
+                <SelectItem value="ps">The Permanent Secretary</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -358,6 +806,32 @@ const NameChangeForm = () => {
                 />
               </div>
 
+              {/* IPPIS Number Field */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor={`ippisNumber_${index}`}
+                  className="flex justify-between"
+                >
+                  IPPIS Number
+                  {errors[`ippisNumber_${index}`] && (
+                    <span className="text-red-500 text-sm">
+                      {errors[`ippisNumber_${index}`]}
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  id={`ippisNumber_${index}`}
+                  value={entry.ippisNumber}
+                  onChange={(e) =>
+                    handleNameEntryChange(index, "ippisNumber", e.target.value)
+                  }
+                  className={
+                    errors[`ippisNumber_${index}`] ? "border-red-500" : ""
+                  }
+                  placeholder="Enter IPPIS Number"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label className="flex justify-between">
                   Supporting Documents
@@ -403,6 +877,25 @@ const NameChangeForm = () => {
                     </Label>
                   </div>
                 </div>
+              </div>
+
+              {/* Other Supporting Documents Field */}
+              <div className="space-y-2">
+                <Label htmlFor={`otherSupportingDocs_${index}`}>
+                  Other Supporting Documents
+                </Label>
+                <Input
+                  id={`otherSupportingDocs_${index}`}
+                  value={entry.otherSupportingDocs}
+                  onChange={(e) =>
+                    handleNameEntryChange(
+                      index,
+                      "otherSupportingDocs",
+                      e.target.value
+                    )
+                  }
+                  placeholder="Enter any other supporting documents"
+                />
               </div>
 
               <div className="space-y-2">
@@ -469,6 +962,9 @@ const NameChangeForm = () => {
               setFormData({
                 reference: "",
                 date: null,
+                mda: "",
+                address: "",
+                recipient: "", // Reset recipient
                 requestType: { single: false, multiple: false },
                 nameEntries: [{ ...emptyNameEntry }],
               });
