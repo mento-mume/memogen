@@ -126,11 +126,25 @@ const generateDocument = async (data) => {
       return format(date || new Date(), "do MMMM, yyyy");
     };
 
+    // Get effective month (next month from current date)
+    const getEffectiveMonth = () => {
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      return format(nextMonth, "MMMM yyyy");
+    };
+
     // Common data for both single and multiple templates
     const commonData = {
       referenceNumber: data.reference,
       requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
+      mda: data.mda || "N/A",
+      address: data.address || "N/A",
+      recipient:
+        data.recipient === "dg"
+          ? "The Director General"
+          : "The Permanent Secretary",
       date: formatDate(new Date()),
+      effectiveMonth: getEffectiveMonth(),
     };
 
     let templateData = {};
@@ -284,6 +298,9 @@ const DOBCorrectionForm = () => {
   const [formData, setFormData] = useState({
     reference: "",
     date: null,
+    mda: "",
+    address: "",
+    recipient: "",
     requestType: {
       single: true,
       multiple: false,
@@ -428,6 +445,9 @@ const DOBCorrectionForm = () => {
             setFormData({
               reference: "",
               date: null,
+              mda: "",
+              address: "",
+              recipient: "",
               requestType: { single: true, multiple: false },
               dobEntries: [{ ...emptyDOBEntry }],
             });
@@ -877,6 +897,9 @@ const DOBCorrectionForm = () => {
               setFormData({
                 reference: "",
                 date: null,
+                mda: "",
+                address: "",
+                recipient: "",
                 requestType: { single: true, multiple: false },
                 dobEntries: [{ ...emptyDOBEntry }],
               });
