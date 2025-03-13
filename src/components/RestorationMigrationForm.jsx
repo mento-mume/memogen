@@ -22,6 +22,9 @@ import {
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { saveAs } from "file-saver";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
 
 // A reusable date picker component that provides a calendar interface for selecting dates
 // It includes validation and error handling capabilities
@@ -219,29 +222,249 @@ const RestorationMigrationForm = () => {
   };
 
   // Form submission handler
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (validateForm()) {
-      console.log("Form submitted:", formData);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-      // Reset form to initial state
-      setFormData({
-        reference: "",
-        date: null,
-        mda: "",
-        address: "",
-        recipient: "",
-        requestType: {
-          single: true,
-          multiple: false,
-        },
-        entries: [{ ...initialEntry }],
-      });
+      try {
+        const docGenerated = await generateDocument(formData);
+
+        if (docGenerated) {
+          setShowSuccess(true);
+          setTimeout(() => {
+            setShowSuccess(false);
+            // Reset form to initial state
+            setFormData({
+              reference: "",
+              date: null,
+              mda: "",
+              address: "",
+              recipient: "",
+              requestType: {
+                single: true,
+                multiple: false,
+              },
+              entries: [{ ...initialEntry }],
+            });
+          }, 3000);
+        } else {
+          setShowError(true);
+          setTimeout(() => setShowError(false), 3000);
+        }
+      } catch (error) {
+        console.error("Error in form submission:", error);
+        setShowError(true);
+        setTimeout(() => setShowError(false), 3000);
+      }
     } else {
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
+    }
+  };
+
+  // Document generation function
+  const generateDocument = async (data) => {
+    try {
+      // Check the request type and approval status
+      const isSingleRequest = !data.requestType.multiple;
+
+      // For single requests
+      let templatePath;
+      let fileName;
+
+      if (isSingleRequest) {
+        // Single request - check if approved or rejected
+        const isApproved = data.entries[0].remark === "approve";
+        templatePath = isApproved
+          ? "/RES_Template_single.docx"
+          : "/RES_Template_single_rejected.docx";
+
+        const status = isApproved ? "Approved" : "Rejected";
+        fileName = `Restoration_Migration_Request_${data.entries[0].name}_${status}.docx`;
+      } else {
+        // Multiple requests - check if all approved, all rejected, or mixed
+        const allApproved = data.entries.every(
+          (entry) => entry.remark === "approve"
+        );
+        const allRejected = data.entries.every(
+          (entry) => entry.remark === "reject"
+        );
+
+        if (allApproved) {
+          templatePath = "/RES_Template_multiple_all_approved.docx";
+          fileName =
+            "Restoration_Migration_Request_Multiple_Entries_All_Approved.docx";
+        } else if (allRejected) {
+          templatePath = "/RES_Template_multiple_all_rejected.docx";
+          fileName = "RES_Template_multiple_Entries_All_Rejected.docx";
+        } else {
+          templatePath = "/RES_Template_multiple_mixed.docx";
+          fileName =
+            "Restoration_Migration_Request_Multiple_Entries_Mixed.docx";
+        }
+      }
+
+      console.log("Form Data:", data);
+      console.log("Attempting to fetch template:", templatePath);
+
+      // Fetch the template with error handling
+      try {
+        const response = await fetch(templatePath);
+        if (!response.ok) {
+          console.error("Template fetch failed:", {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+          });
+          throw new Error(`Failed to fetch template: ${response.statusText}`);
+        }
+
+        const templateBlob = await response.blob();
+        const templateArrayBuffer = await templateBlob.arrayBuffer();
+
+        // Create a new instance of PizZip
+        const zip = new PizZip(templateArrayBuffer);
+
+        // Create a new instance of Docxtemplater
+        const doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+        });
+
+        // Format supporting documents for each entry
+        const formattedEntries = data.entries.map((entry, index) => ({
+          ...entry,
+          sn: String.fromCharCode(97 + index), // Convert index to letter (a, b, c, etc.)
+          supportingDocs: Object.entries(entry.documents)
+            .filter(([, value]) => value)
+            .map(([key]) => {
+              const doc = supportingDocuments.find((d) => d.id === key);
+              return doc ? doc.label : key;
+            })
+            .join(", "),
+          isApproved: entry.remark === "approve",
+        }));
+
+        // Common data for all templates
+        const templateData = {
+          referenceNumber: data.reference,
+          requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
+          mda: data.mda || "N/A",
+          address: data.address || "N/A",
+          recipient:
+            data.recipient === "dg"
+              ? "The Director General"
+              : "The Permanent Secretary",
+          date: format(new Date(), "do MMMM, yyyy"),
+          effectiveMonth: (() => {
+            const nextMonth = new Date();
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            return format(nextMonth, "MMMM yyyy");
+          })(),
+        };
+
+        if (isSingleRequest) {
+          // For single entry
+          const entry = data.entries[0];
+          const isApproved = entry.remark === "approve";
+
+          Object.assign(templateData, {
+            name: entry.name,
+            ippis: entry.ippis || "N/A",
+            previousMDA: entry.previousMDA,
+            newMDA: entry.newMDA,
+            supportingDocsList: formattedEntries[0].supportingDocs,
+            observation: entry.observation || "No observation",
+            remark: isApproved ? "Approved" : "Rejected",
+            isApproved: isApproved,
+            reasonForRejection: isApproved
+              ? ""
+              : entry.observation || "Incomplete documentation",
+          });
+        } else {
+          // For multiple entries
+          const allApproved = data.entries.every(
+            (entry) => entry.remark === "approve"
+          );
+          const allRejected = data.entries.every(
+            (entry) => entry.remark === "reject"
+          );
+
+          if (allApproved || allRejected) {
+            Object.assign(templateData, {
+              entries: formattedEntries,
+              allApproved: allApproved,
+              summaryRows: formattedEntries.map((entry) => ({
+                sn: entry.sn,
+                ippis: entry.ippis || "N/A",
+                name: entry.name,
+                previousMDA: entry.previousMDA,
+                newMDA: entry.newMDA,
+              })),
+            });
+          } else {
+            // Mixed case: separate approved and rejected entries
+            const approvedEntries = formattedEntries.filter(
+              (entry) => entry.isApproved
+            );
+            const rejectedEntries = formattedEntries.filter(
+              (entry) => !entry.isApproved
+            );
+
+            Object.assign(templateData, {
+              entries: formattedEntries, // All entries for reference
+              approvedEntries: approvedEntries,
+              rejectedEntries: rejectedEntries,
+              hasApproved: approvedEntries.length > 0,
+              hasRejected: rejectedEntries.length > 0,
+              approvedSummary: approvedEntries.map((entry) => ({
+                sn: entry.sn,
+                ippis: entry.ippis || "N/A",
+                name: entry.name,
+                previousMDA: entry.previousMDA,
+                newMDA: entry.newMDA,
+              })),
+              rejectedSummary: rejectedEntries.map((entry) => ({
+                sn: entry.sn,
+                ippis: entry.ippis || "N/A",
+                name: entry.name,
+                previousMDA: entry.previousMDA,
+                newMDA: entry.newMDA,
+              })),
+            });
+          }
+        }
+
+        console.log("Template data:", templateData);
+
+        try {
+          // Render the document with the data
+          doc.render(templateData);
+
+          // Generate the document
+          const output = doc.getZip().generate({
+            type: "blob",
+            mimeType:
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          });
+
+          // Save the file
+          saveAs(output, fileName);
+          return true;
+        } catch (renderError) {
+          console.error("Error rendering document:", renderError);
+          if (renderError.properties && renderError.properties.errors) {
+            console.error("Template errors:", renderError.properties.errors);
+          }
+          throw renderError;
+        }
+      } catch (fetchError) {
+        console.error("Error fetching template:", fetchError);
+        throw fetchError;
+      }
+    } catch (error) {
+      console.error("Error in document generation:", error);
+      return false;
     }
   };
 
@@ -311,13 +534,10 @@ const RestorationMigrationForm = () => {
 
           {/* Recipient Select Field */}
           <div className="space-y-2">
-            <Label htmlFor="recipient" className="flex justify-between">
-              Letter Recipient
-              {errors.recipient && (
-                <span className="text-red-500 text-sm">{errors.recipient}</span>
-              )}
-            </Label>
+            <Label htmlFor="recipient">Letter Recipient</Label>
             <Select
+              id="recipient"
+              name="recipient"
               value={formData.recipient}
               onValueChange={(value) => handleInputChange("recipient", value)}
             >
@@ -331,6 +551,9 @@ const RestorationMigrationForm = () => {
                 <SelectItem value="ps">The Permanent Secretary</SelectItem>
               </SelectContent>
             </Select>
+            {errors.recipient && (
+              <span className="text-red-500 text-sm">{errors.recipient}</span>
+            )}
           </div>
 
           {/* Request Type Selection */}
@@ -339,19 +562,21 @@ const RestorationMigrationForm = () => {
             <div className="flex space-x-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="single"
+                  id="request-type-single"
+                  name="request-type"
                   checked={formData.requestType.single}
                   onCheckedChange={() => handleRequestTypeChange("single")}
                 />
-                <Label htmlFor="single">Single</Label>
+                <Label htmlFor="request-type-single">Single</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="multiple"
+                  id="request-type-multiple"
+                  name="request-type"
                   checked={formData.requestType.multiple}
                   onCheckedChange={() => handleRequestTypeChange("multiple")}
                 />
-                <Label htmlFor="multiple">Multiple</Label>
+                <Label htmlFor="request-type-multiple">Multiple</Label>
               </div>
             </div>
           </div>
@@ -452,7 +677,7 @@ const RestorationMigrationForm = () => {
                 </div>
               </div>
 
-              {/* Supporting Documents Section */}
+              {/* Supporting Documents */}
               <div className="space-y-2">
                 <Label>Supporting Documents</Label>
                 <div className="grid grid-cols-2 gap-4">
@@ -460,6 +685,7 @@ const RestorationMigrationForm = () => {
                     <div key={doc.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`${doc.id}-${index}`}
+                        name={`supporting-docs-${index}`}
                         checked={entry.documents[doc.id]}
                         onCheckedChange={(checked) =>
                           handleDocumentChange(index, doc.id, checked)
@@ -498,8 +724,10 @@ const RestorationMigrationForm = () => {
 
               {/* Remark Selection */}
               <div className="space-y-2">
-                <Label>Remark</Label>
+                <Label htmlFor={`remark-${index}`}>Remark</Label>
                 <Select
+                  name={`remark-${index}`}
+                  id={`remark-${index}`}
                   value={entry.remark}
                   onValueChange={(value) =>
                     handleEntryChange(index, "remark", value)
