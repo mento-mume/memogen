@@ -22,21 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Calendar as CalendarIcon,
-  CheckCircle,
-  AlertCircle,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { CheckCircle, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import DatePickerField from "@/components/DatePickerField";
 
 // Initial empty DOB correction entry object
 const emptyDOBEntry = {
@@ -427,8 +416,6 @@ const DOBCorrectionForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // (Previous code continues...)
-
   const handleSubmit = (e) => {
     e.preventDefault();
     setSubmitStatus(null);
@@ -499,37 +486,13 @@ const DOBCorrectionForm = () => {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="flex justify-between">
-              Date
-              {errors.date && (
-                <span className="text-red-500 text-sm">{errors.date}</span>
-              )}
-            </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`w-full justify-start text-left font-normal ${
-                    errors.date ? "border-red-500" : ""
-                  }`}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.date ? format(formData.date, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={formData.date}
-                  onSelect={(date) => handleInputChange("date", date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+          <DatePickerField
+            label="Date"
+            value={formData.date}
+            onChange={(date) => handleInputChange("date", date)}
+            error={errors.date}
+          />
 
-          {/* MDA Field */}
           <div className="space-y-2">
             <Label htmlFor="mda" className="flex justify-between">
               MDA (Ministry, Department or Agency)
@@ -546,7 +509,6 @@ const DOBCorrectionForm = () => {
             />
           </div>
 
-          {/* Address Field */}
           <div className="space-y-2">
             <Label htmlFor="address" className="flex justify-between">
               Address on Letter
@@ -564,7 +526,6 @@ const DOBCorrectionForm = () => {
             />
           </div>
 
-          {/* Recipient Select Field */}
           <div className="space-y-2">
             <Label htmlFor="recipient" className="flex justify-between">
               Letter Recipient
@@ -685,77 +646,23 @@ const DOBCorrectionForm = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="flex justify-between">
-                    Previous DOB
-                    {errors[`previousDOB_${index}`] && (
-                      <span className="text-red-500 text-sm">
-                        {errors[`previousDOB_${index}`]}
-                      </span>
-                    )}
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={`w-full justify-start text-left font-normal ${
-                          errors[`previousDOB_${index}`] ? "border-red-500" : ""
-                        }`}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {entry.previousDOB
-                          ? format(entry.previousDOB, "PPP")
-                          : "Select previous DOB"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={entry.previousDOB}
-                        onSelect={(date) =>
-                          handleDOBEntryChange(index, "previousDOB", date)
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                <DatePickerField
+                  label="Previous DOB"
+                  value={entry.previousDOB}
+                  onChange={(date) =>
+                    handleDOBEntryChange(index, "previousDOB", date)
+                  }
+                  error={errors[`previousDOB_${index}`]}
+                />
 
-                <div className="space-y-2">
-                  <Label className="flex justify-between">
-                    New DOB
-                    {errors[`newDOB_${index}`] && (
-                      <span className="text-red-500 text-sm">
-                        {errors[`newDOB_${index}`]}
-                      </span>
-                    )}
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={`w-full justify-start text-left font-normal ${
-                          errors[`newDOB_${index}`] ? "border-red-500" : ""
-                        }`}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {entry.newDOB
-                          ? format(entry.newDOB, "PPP")
-                          : "Select new DOB"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={entry.newDOB}
-                        onSelect={(date) =>
-                          handleDOBEntryChange(index, "newDOB", date)
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                <DatePickerField
+                  label="New DOB"
+                  value={entry.newDOB}
+                  onChange={(date) =>
+                    handleDOBEntryChange(index, "newDOB", date)
+                  }
+                  error={errors[`newDOB_${index}`]}
+                />
               </div>
 
               <div className="space-y-2">

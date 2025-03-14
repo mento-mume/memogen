@@ -2,6 +2,7 @@ import { useState } from "react";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { saveAs } from "file-saver";
+import { format } from "date-fns";
 
 import {
   Card,
@@ -21,22 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { format } from "date-fns";
-import {
-  Calendar as CalendarIcon,
-  CheckCircle,
-  AlertCircle,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { CheckCircle, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import DatePickerField from "@/components/DatePickerField";
 
 // Initial empty name entry object - now includes IPPIS number and otherSupportingDocs
 const emptyNameEntry = {
@@ -53,132 +42,6 @@ const emptyNameEntry = {
   remarks: "",
 };
 
-// const generateDocument = async (data) => {
-//   try {
-//     // Determine which template to use based on the request type
-//     const templatePath = data.requestType.multiple
-//       ? "/CON_Template_multiple.docx"
-//       : "/CON_Template_single.docx";
-
-//     // Fetch the appropriate template
-//     const response = await fetch(templatePath);
-//     const arrayBuffer = await response.arrayBuffer();
-//     const zip = new PizZip(arrayBuffer);
-
-//     // Create a new instance of Docxtemplater
-//     const doc = new Docxtemplater(zip, {
-//       paragraphLoop: true,
-//       linebreaks: true,
-//     });
-
-//     // Format the supporting documents as a comma-separated string
-//     const getSupportingDocsList = (entry) => {
-//       const docs = [];
-//       if (entry.supportingDocs.newspaper) docs.push("Newspaper publication");
-//       if (entry.supportingDocs.marriageCert) docs.push("Marriage Certificate");
-//       if (entry.supportingDocs.courtAffidavit) docs.push("Court Affidavit");
-
-//       // Add other supporting documents if provided
-//       if (entry.otherSupportingDocs.trim()) {
-//         docs.push(entry.otherSupportingDocs);
-//       }
-
-//       return docs.join(", ");
-//     };
-
-//     // Format current date
-//     const formatDate = (date) => {
-//       return format(date || new Date(), "do MMMM, yyyy");
-//     };
-
-//     // Get effective month (next month from current date)
-//     const getEffectiveMonth = () => {
-//       const nextMonth = new Date();
-//       nextMonth.setMonth(nextMonth.getMonth() + 1);
-//       return format(nextMonth, "MMMM yyyy");
-//     };
-
-//     // Common data for both single and multiple templates
-
-//     const commonData = {
-//       referenceNumber: data.reference,
-//       requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
-//       mda: data.mda || "N/A",
-//       address: data.address || "N/A", // Address is already included
-//       recipient:
-//         data.recipient === "dg"
-//           ? "The Director General"
-//           : "The Permanent Secretary", // Add recipient
-//       date: formatDate(new Date()),
-//       effectiveMonth: getEffectiveMonth(),
-//     };
-
-//     let templateData = {};
-
-//     if (data.requestType.multiple) {
-//       // Prepare entries for the table loop
-//       // This works with any number of entries, not just limited to 2
-//       const detailedEntries = data.nameEntries.map((entry, index) => ({
-//         sn: getLetterForIndex(index),
-//         ippisNumber: entry.ippisNumber || "N/A",
-//         previousName: entry.previousName,
-//         newName: entry.newName,
-//         supportingDocsList: getSupportingDocsList(entry),
-//         observation: entry.observation || "No observation",
-//         remark: entry.remarks === "approve" ? "Approved" : "Rejected",
-//       }));
-
-//       templateData = {
-//         ...commonData,
-//         entries: detailedEntries,
-//         summaryRows: detailedEntries.map((entry) => ({
-//           sn: entry.sn,
-//           ippisNumber: entry.ippisNumber,
-//           oldName: entry.previousName,
-//           newName: entry.newName,
-//         })),
-//       };
-//     } else {
-//       // For single entry
-//       const nameEntry = data.nameEntries[0];
-
-//       templateData = {
-//         ...commonData,
-//         previousName: nameEntry.previousName,
-//         newName: nameEntry.newName,
-//         ippisNumberFinal: nameEntry.ippisNumber || "N/A",
-//         supportingDocsList: getSupportingDocsList(nameEntry),
-//         observation: nameEntry.observation || "No observation",
-//         remark: nameEntry.remarks === "approve" ? "Approved" : "Rejected",
-//       };
-//     }
-//     console.log(templateData);
-//     // Set the template data
-//     doc.setData(templateData);
-
-//     // Render the document
-//     doc.render();
-
-//     // Get the binary content of the output document
-//     const output = doc.getZip().generate({
-//       type: "blob",
-//       mimeType:
-//         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-//     });
-
-//     // Save the document
-//     const fileName = data.requestType.multiple
-//       ? `Name_Change_Request_Multiple_Entries.docx`
-//       : `Name_Change_Request_${data.nameEntries[0].previousName}_to_${data.nameEntries[0].newName}.docx`;
-
-//     saveAs(output, fileName);
-
-//     return true;
-//   } catch (error) {
-//     console.error("Error generating document:", error);
-//     return false;
-//   }
-// };
 const generateDocument = async (data) => {
   try {
     // Check the request type and approval status
@@ -401,6 +264,7 @@ const generateDocument = async (data) => {
     return false;
   }
 };
+
 // Helper function to convert index to letter (0 -> a, 1 -> b, etc.)
 function getLetterForIndex(index) {
   return String.fromCharCode(97 + index); // 97 is ASCII for 'a'
@@ -621,35 +485,12 @@ const NameChangeForm = () => {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="flex justify-between">
-              Date
-              {errors.date && (
-                <span className="text-red-500 text-sm">{errors.date}</span>
-              )}
-            </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`w-full justify-start text-left font-normal ${
-                    errors.date ? "border-red-500" : ""
-                  }`}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.date ? format(formData.date, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={formData.date}
-                  onSelect={(date) => handleInputChange("date", date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+          <DatePickerField
+            label="Date"
+            value={formData.date}
+            onChange={(date) => handleInputChange("date", date)}
+            error={errors.date}
+          />
 
           {/* MDA Field */}
           <div className="space-y-2">

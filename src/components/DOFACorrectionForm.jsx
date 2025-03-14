@@ -6,13 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import PropTypes from "prop-types";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -20,78 +13,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { saveAs } from "file-saver";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import DatePickerField from "@/components/DatePickerField";
 
-// Reusable date picker component
-const DatePickerField = ({ value, onChange, label, error }) => (
-  <div className="flex flex-col space-y-2">
-    <Label>{label}</Label>
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={`w-full justify-start text-left font-normal ${
-            error ? "border-red-500" : ""
-          }`}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(value, "PPP") : "Select date"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <Calendar
-          mode="single"
-          selected={value}
-          onSelect={onChange}
-          initialFocus
-        />
-      </PopoverContent>
-    </Popover>
-    {error && <span className="text-red-500 text-sm">{error}</span>}
-  </div>
-);
-// PropTypes validation for DatePickerField
-DatePickerField.propTypes = {
-  // Value can be either a Date object or null
-  value: PropTypes.instanceOf(Date),
-  // onChange is a required function that handles date selection
-  onChange: PropTypes.func.isRequired,
-  // Label is a required string to display above the date picker
-  label: PropTypes.string.isRequired,
-  // Error is an optional string for displaying validation errors
-  error: PropTypes.string,
-};
-
-// Default props for DatePickerField
-DatePickerField.defaultProps = {
-  value: null,
-  error: null,
+// Initial empty DOFA correction entry object
+const initialEntry = {
+  name: "",
+  ippis: "",
+  previousDOFA: null,
+  newDOFA: null,
+  documents: {
+    payslip: false,
+    assumption: false,
+    appointment: false,
+    resignation: false,
+    acceptanceResignation: false,
+    recordService: false,
+  },
+  otherDocuments: "",
+  observation: "",
+  remark: "approve",
 };
 
 const DOFACorrectionForm = () => {
-  // Initial state for a single entry
-  const initialEntry = {
-    name: "",
-    ippis: "",
-    previousDOFA: null,
-    newDOFA: null,
-    documents: {
-      payslip: false,
-      assumption: false,
-      appointment: false,
-      resignation: false,
-      acceptanceResignation: false,
-      recordService: false,
-    },
-    otherDocuments: "",
-    observation: "",
-    remark: "approve",
-  };
-
   // Main form state
   const [formData, setFormData] = useState({
     reference: "",

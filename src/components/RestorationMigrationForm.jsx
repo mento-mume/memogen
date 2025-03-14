@@ -1,17 +1,10 @@
 import { useState } from "react";
-import PropTypes from "prop-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -20,73 +13,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { saveAs } from "file-saver";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import DatePickerField from "@/components/DatePickerField";
 
-// A reusable date picker component that provides a calendar interface for selecting dates
-// It includes validation and error handling capabilities
-const DatePickerField = ({ value, onChange, label, error }) => (
-  <div className="flex flex-col space-y-2">
-    <Label>{label}</Label>
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={`w-full justify-start text-left font-normal ${
-            error ? "border-red-500" : ""
-          }`}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(value, "PPP") : "Select date"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <Calendar
-          mode="single"
-          selected={value}
-          onSelect={onChange}
-          initialFocus
-        />
-      </PopoverContent>
-    </Popover>
-    {error && <span className="text-red-500 text-sm">{error}</span>}
-  </div>
-);
-
-// PropTypes for the DatePickerField component to ensure proper type checking
-DatePickerField.propTypes = {
-  value: PropTypes.instanceOf(Date),
-  onChange: PropTypes.func.isRequired,
-  label: PropTypes.string.isRequired,
-  error: PropTypes.string,
-};
-
-DatePickerField.defaultProps = {
-  value: null,
-  error: null,
+// Initial state for a single entry
+const initialEntry = {
+  name: "",
+  ippis: "",
+  previousMDA: "",
+  newMDA: "",
+  documents: {
+    posting: false,
+    payslip: false,
+    assumption: false,
+    idcard: false,
+  },
+  otherDocuments: "",
+  observation: "",
+  remark: "approve",
 };
 
 const RestorationMigrationForm = () => {
-  // Define the initial state for a single entry in the form
-  const initialEntry = {
-    name: "",
-    ippis: "",
-    previousMDA: "",
-    newMDA: "",
-    documents: {
-      posting: false,
-      payslip: false,
-      assumption: false,
-      idcard: false,
-    },
-    otherDocuments: "",
-    observation: "",
-    remark: "approve",
-  };
-
   // Initialize the main form state with default values
   const [formData, setFormData] = useState({
     reference: "",
