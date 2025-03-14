@@ -22,6 +22,9 @@ import {
 } from "@/components/ui/select";
 import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { saveAs } from "file-saver";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
 
 // Reusable date picker component
 const DatePickerField = ({ value, onChange, label, error }) => (
@@ -210,16 +213,6 @@ const DOFACorrectionForm = () => {
         newErrors[`previousDOFA-${index}`] = "Previous DOFA is required";
       if (!entry.newDOFA)
         newErrors[`newDOFA-${index}`] = "New DOFA is required";
-
-      // Check if new DOFA is before previous DOFA
-      if (
-        entry.previousDOFA &&
-        entry.newDOFA &&
-        entry.newDOFA > entry.previousDOFA
-      ) {
-        newErrors[`newDOFA-${index}`] =
-          "New DOFA must be before or equal to Previous DOFA";
-      }
     });
 
     setErrors(newErrors);
@@ -227,29 +220,257 @@ const DOFACorrectionForm = () => {
   };
 
   // Form submission handler
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (validateForm()) {
-      console.log("Form submitted:", formData);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-      // Reset form
-      setFormData({
-        reference: "",
-        date: null,
-        mda: "",
-        address: "",
-        recipient: "",
-        requestType: {
-          single: true,
-          multiple: false,
-        },
-        entries: [{ ...initialEntry }],
-      });
+      try {
+        const docGenerated = await generateDocument(formData);
+
+        if (docGenerated) {
+          setShowSuccess(true);
+          setTimeout(() => {
+            setShowSuccess(false);
+            // Reset form to initial state
+            setFormData({
+              reference: "",
+              date: null,
+              mda: "",
+              address: "",
+              recipient: "",
+              requestType: {
+                single: true,
+                multiple: false,
+              },
+              entries: [{ ...initialEntry }],
+            });
+          }, 3000);
+        } else {
+          setShowError(true);
+          setTimeout(() => setShowError(false), 3000);
+        }
+      } catch (error) {
+        console.error("Error in form submission:", error);
+        setShowError(true);
+        setTimeout(() => setShowError(false), 3000);
+      }
     } else {
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
+    }
+  };
+
+  // Document generation function
+  const generateDocument = async (data) => {
+    try {
+      // Check the request type and approval status
+      const isSingleRequest = !data.requestType.multiple;
+
+      // For single requests
+      let templatePath;
+      let fileName;
+
+      if (isSingleRequest) {
+        // Single request - check if approved or rejected
+        const isApproved = data.entries[0].remark === "approve";
+        templatePath = isApproved
+          ? "/DOFA_Template_single.docx"
+          : "/DOFA_Template_single_rejected.docx";
+
+        const status = isApproved ? "Approved" : "Rejected";
+        fileName = `DOFA_Correction_Request_${data.entries[0].name}_${status}.docx`;
+      } else {
+        // Multiple requests - check if all approved, all rejected, or mixed
+        const allApproved = data.entries.every(
+          (entry) => entry.remark === "approve"
+        );
+        const allRejected = data.entries.every(
+          (entry) => entry.remark === "reject"
+        );
+
+        if (allApproved) {
+          templatePath = "/DOFA_Template_multiple_all_approved.docx";
+          fileName =
+            "DOFA_Correction_Request_Multiple_Entries_All_Approved.docx";
+        } else if (allRejected) {
+          templatePath = "/DOFA_Template_multiple_all_rejected.docx";
+          fileName =
+            "DOFA_Correction_Request_Multiple_Entries_All_Rejected.docx";
+        } else {
+          templatePath = "/DOFA_Template_multiple_mixed.docx";
+          fileName = "DOFA_Correction_Request_Multiple_Entries_Mixed.docx";
+        }
+      }
+
+      console.log("Form Data:", data);
+      console.log("Attempting to fetch template:", templatePath);
+
+      // Fetch the template with error handling
+      try {
+        const response = await fetch(templatePath);
+        if (!response.ok) {
+          console.error("Template fetch failed:", {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+          });
+          throw new Error(`Failed to fetch template: ${response.statusText}`);
+        }
+
+        const templateBlob = await response.blob();
+        const templateArrayBuffer = await templateBlob.arrayBuffer();
+
+        // Create a new instance of PizZip
+        const zip = new PizZip(templateArrayBuffer);
+
+        // Create a new instance of Docxtemplater
+        const doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+        });
+
+        // Format supporting documents for each entry
+        const formattedEntries = data.entries.map((entry, index) => ({
+          ...entry,
+          sn: String.fromCharCode(97 + index), // Convert index to letter (a, b, c, etc.)
+          previousDOFA: entry.previousDOFA
+            ? format(entry.previousDOFA, "do MMMM, yyyy")
+            : "",
+          newDOFA: entry.newDOFA ? format(entry.newDOFA, "do MMMM, yyyy") : "",
+          supportingDocs: Object.entries(entry.documents)
+            .filter(([, value]) => value)
+            .map(([key]) => {
+              const doc = supportingDocuments.find((d) => d.id === key);
+              return doc ? doc.label : key;
+            })
+            .join(", "),
+          isApproved: entry.remark === "approve",
+        }));
+
+        // Common data for all templates
+        const templateData = {
+          referenceNumber: data.reference,
+          requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
+          mda: data.mda || "N/A",
+          address: data.address || "N/A",
+          recipient:
+            data.recipient === "dg"
+              ? "The Director General"
+              : "The Permanent Secretary",
+          date: format(new Date(), "do MMMM, yyyy"),
+          effectiveMonth: (() => {
+            const nextMonth = new Date();
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            return format(nextMonth, "MMMM yyyy");
+          })(),
+        };
+
+        if (isSingleRequest) {
+          // For single entry
+          const entry = data.entries[0];
+          const isApproved = entry.remark === "approve";
+
+          Object.assign(templateData, {
+            name: entry.name,
+            ippis: entry.ippis || "N/A",
+            previousDOFA: entry.previousDOFA
+              ? format(entry.previousDOFA, "do MMMM, yyyy")
+              : "",
+            newDOFA: entry.newDOFA
+              ? format(entry.newDOFA, "do MMMM, yyyy")
+              : "",
+            supportingDocsList: formattedEntries[0].supportingDocs,
+            observation: entry.observation || "No observation",
+            remark: isApproved ? "Approved" : "Rejected",
+            isApproved: isApproved,
+            reasonForRejection: isApproved
+              ? ""
+              : entry.observation || "Incomplete documentation",
+          });
+        } else {
+          // For multiple entries
+          const allApproved = data.entries.every(
+            (entry) => entry.remark === "approve"
+          );
+          const allRejected = data.entries.every(
+            (entry) => entry.remark === "reject"
+          );
+
+          if (allApproved || allRejected) {
+            Object.assign(templateData, {
+              entries: formattedEntries,
+              allApproved: allApproved,
+              summaryRows: formattedEntries.map((entry) => ({
+                sn: entry.sn,
+                ippis: entry.ippis || "N/A",
+                name: entry.name,
+                previousDOFA: entry.previousDOFA,
+                newDOFA: entry.newDOFA,
+              })),
+            });
+          } else {
+            // Mixed case: separate approved and rejected entries
+            const approvedEntries = formattedEntries.filter(
+              (entry) => entry.isApproved
+            );
+            const rejectedEntries = formattedEntries.filter(
+              (entry) => !entry.isApproved
+            );
+
+            Object.assign(templateData, {
+              entries: formattedEntries, // All entries for reference
+              approvedEntries: approvedEntries,
+              rejectedEntries: rejectedEntries,
+              hasApproved: approvedEntries.length > 0,
+              hasRejected: rejectedEntries.length > 0,
+              approvedSummary: approvedEntries.map((entry) => ({
+                sn: entry.sn,
+                ippis: entry.ippis || "N/A",
+                name: entry.name,
+                previousDOFA: entry.previousDOFA,
+                newDOFA: entry.newDOFA,
+              })),
+              rejectedSummary: rejectedEntries.map((entry) => ({
+                sn: entry.sn,
+                ippis: entry.ippis || "N/A",
+                name: entry.name,
+                previousDOFA: entry.previousDOFA,
+                newDOFA: entry.newDOFA,
+              })),
+            });
+          }
+        }
+
+        console.log("Template data:", templateData);
+
+        try {
+          // Render the document with the data
+          doc.render(templateData);
+
+          // Generate the document
+          const output = doc.getZip().generate({
+            type: "blob",
+            mimeType:
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          });
+
+          // Save the file
+          saveAs(output, fileName);
+          return true;
+        } catch (renderError) {
+          console.error("Error rendering document:", renderError);
+          if (renderError.properties && renderError.properties.errors) {
+            console.error("Template errors:", renderError.properties.errors);
+          }
+          throw renderError;
+        }
+      } catch (fetchError) {
+        console.error("Error fetching template:", fetchError);
+        throw fetchError;
+      }
+    } catch (error) {
+      console.error("Error in document generation:", error);
+      return false;
     }
   };
 
