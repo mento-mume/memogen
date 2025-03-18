@@ -69,7 +69,7 @@ const Dashboard = () => {
       abbreviation: "NOK",
       description: "Request for change of next of kin information",
       icon: <UsersIcon className="h-6 w-6" />,
-      route: "/NextOfKinForm",
+      route: "/NextOfKinChangeForm",
     },
   ];
 

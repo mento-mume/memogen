@@ -172,6 +172,25 @@ const RestorationMigrationForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Function to reset the form to its initial state
+  const resetForm = () => {
+    setFormData({
+      reference: "",
+      date: null,
+      mda: "",
+      address: "",
+      recipient: "",
+      requestType: {
+        single: true,
+        multiple: false,
+      },
+      entries: [{ ...initialEntry }],
+    });
+    setErrors({});
+    setShowSuccess(false);
+    setShowError(false);
+  };
+
   // Form submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -184,19 +203,7 @@ const RestorationMigrationForm = () => {
           setShowSuccess(true);
           setTimeout(() => {
             setShowSuccess(false);
-            // Reset form to initial state
-            setFormData({
-              reference: "",
-              date: null,
-              mda: "",
-              address: "",
-              recipient: "",
-              requestType: {
-                single: true,
-                multiple: false,
-              },
-              entries: [{ ...initialEntry }],
-            });
+            resetForm();
           }, 3000);
         } else {
           setShowError(true);
@@ -708,10 +715,20 @@ const RestorationMigrationForm = () => {
             </Button>
           )}
 
-          {/* Submit Button */}
-          <Button type="submit" className="w-full">
-            Submit Form
-          </Button>
+          {/* Submit and Reset Buttons */}
+          <div className="flex justify-end space-x-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={resetForm}
+              className="hover:bg-gray-100"
+            >
+              Reset Form
+            </Button>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              Submit Form
+            </Button>
+          </div>
 
           {/* Success Message */}
           {showSuccess && (

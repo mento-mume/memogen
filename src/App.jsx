@@ -9,6 +9,7 @@ import NameChangeForm from "./components/NameChangeForm";
 import RestorationMigrationForm from "./components/RestorationMigrationForm";
 import DOBCorrectionForm from "./components/DOBCorrectionForm";
 import DOFACorrectionForm from "./components/DOFACorrectionForm";
+import NextOfKinChangeForm from "./components/NextOfKinChangeForm";
 function App() {
   return (
     <>
@@ -34,6 +35,12 @@ function App() {
 
         <Route path="/NameChangeForm" element={<ProtectedRoute />}>
           <Route path="/NameChangeForm" element={<NameChangeForm />} />
+        </Route>
+        <Route path="/NextOfKinChangeForm" element={<ProtectedRoute />}>
+          <Route
+            path="/NextOfKinChangeForm"
+            element={<NextOfKinChangeForm />}
+          />
         </Route>
       </Routes>
     </>
