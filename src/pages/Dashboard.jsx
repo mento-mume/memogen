@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import NavBar from "@/components/NavBar";
+
 import {
   Card,
   CardContent,
@@ -75,7 +75,6 @@ const Dashboard = () => {
 
   return (
     <>
-      <NavBar />
       <div className="container mx-auto p-6">
         <h1 className="text-2xl font-bold mb-6">Requests</h1>
 

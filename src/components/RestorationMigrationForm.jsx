@@ -427,330 +427,346 @@ const RestorationMigrationForm = () => {
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>Restoration and Migration Form</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Header Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="reference">Reference Number</Label>
-              <Input
-                id="reference"
-                value={formData.reference}
-                onChange={(e) => handleInputChange("reference", e.target.value)}
-                className={`w-full ${errors.reference ? "border-red-500" : ""}`}
+    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto">
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Restoration and Migration Form</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Header Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="reference">Reference Number</Label>
+                <Input
+                  id="reference"
+                  value={formData.reference}
+                  onChange={(e) =>
+                    handleInputChange("reference", e.target.value)
+                  }
+                  className={`w-full ${
+                    errors.reference ? "border-red-500" : ""
+                  }`}
+                />
+                {errors.reference && (
+                  <span className="text-red-500 text-sm">
+                    {errors.reference}
+                  </span>
+                )}
+              </div>
+              <DatePickerField
+                label="Date"
+                value={formData.date}
+                onChange={(date) => handleInputChange("date", date)}
+                error={errors.date}
               />
-              {errors.reference && (
-                <span className="text-red-500 text-sm">{errors.reference}</span>
+            </div>
+
+            {/* MDA Field */}
+            <div className="space-y-2">
+              <Label htmlFor="mda" className="flex justify-between">
+                MDA (Ministry, Department or Agency)
+                {errors.mda && (
+                  <span className="text-red-500 text-sm">{errors.mda}</span>
+                )}
+              </Label>
+              <Input
+                id="mda"
+                value={formData.mda}
+                onChange={(e) => handleInputChange("mda", e.target.value)}
+                className={errors.mda ? "border-red-500" : ""}
+                placeholder="Enter MDA"
+              />
+            </div>
+
+            {/* Address Field */}
+            <div className="space-y-2">
+              <Label htmlFor="address" className="flex justify-between">
+                Address on Letter
+                {errors.address && (
+                  <span className="text-red-500 text-sm">{errors.address}</span>
+                )}
+              </Label>
+              <Textarea
+                id="address"
+                value={formData.address}
+                onChange={(e) => handleInputChange("address", e.target.value)}
+                className={errors.address ? "border-red-500" : ""}
+                placeholder="Enter address for the letter"
+                rows={3}
+              />
+            </div>
+
+            {/* Recipient Select Field */}
+            <div className="space-y-2">
+              <Label htmlFor="recipient">Letter Recipient</Label>
+              <Select
+                id="recipient"
+                name="recipient"
+                value={formData.recipient}
+                onValueChange={(value) => handleInputChange("recipient", value)}
+              >
+                <SelectTrigger
+                  className={errors.recipient ? "border-red-500" : ""}
+                >
+                  <SelectValue placeholder="Select recipient" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dg">The Director General</SelectItem>
+                  <SelectItem value="ps">The Permanent Secretary</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.recipient && (
+                <span className="text-red-500 text-sm">{errors.recipient}</span>
               )}
             </div>
-            <DatePickerField
-              label="Date"
-              value={formData.date}
-              onChange={(date) => handleInputChange("date", date)}
-              error={errors.date}
-            />
-          </div>
 
-          {/* MDA Field */}
-          <div className="space-y-2">
-            <Label htmlFor="mda" className="flex justify-between">
-              MDA (Ministry, Department or Agency)
-              {errors.mda && (
-                <span className="text-red-500 text-sm">{errors.mda}</span>
-              )}
-            </Label>
-            <Input
-              id="mda"
-              value={formData.mda}
-              onChange={(e) => handleInputChange("mda", e.target.value)}
-              className={errors.mda ? "border-red-500" : ""}
-              placeholder="Enter MDA"
-            />
-          </div>
+            {/* Request Type Selection */}
+            <div className="space-y-2">
+              <Label>Request Type</Label>
+              <div className="flex space-x-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="request-type-single"
+                    name="request-type"
+                    checked={formData.requestType.single}
+                    onCheckedChange={() => handleRequestTypeChange("single")}
+                  />
+                  <Label htmlFor="request-type-single">Single</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="request-type-multiple"
+                    name="request-type"
+                    checked={formData.requestType.multiple}
+                    onCheckedChange={() => handleRequestTypeChange("multiple")}
+                  />
+                  <Label htmlFor="request-type-multiple">Multiple</Label>
+                </div>
+              </div>
+            </div>
 
-          {/* Address Field */}
-          <div className="space-y-2">
-            <Label htmlFor="address" className="flex justify-between">
-              Address on Letter
-              {errors.address && (
-                <span className="text-red-500 text-sm">{errors.address}</span>
-              )}
-            </Label>
-            <Textarea
-              id="address"
-              value={formData.address}
-              onChange={(e) => handleInputChange("address", e.target.value)}
-              className={errors.address ? "border-red-500" : ""}
-              placeholder="Enter address for the letter"
-              rows={3}
-            />
-          </div>
-
-          {/* Recipient Select Field */}
-          <div className="space-y-2">
-            <Label htmlFor="recipient">Letter Recipient</Label>
-            <Select
-              id="recipient"
-              name="recipient"
-              value={formData.recipient}
-              onValueChange={(value) => handleInputChange("recipient", value)}
-            >
-              <SelectTrigger
-                className={errors.recipient ? "border-red-500" : ""}
+            {/* Entry Forms */}
+            {formData.entries.map((entry, index) => (
+              <div
+                key={index}
+                className="space-y-6 p-4 border rounded-lg relative"
               >
-                <SelectValue placeholder="Select recipient" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dg">The Director General</SelectItem>
-                <SelectItem value="ps">The Permanent Secretary</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.recipient && (
-              <span className="text-red-500 text-sm">{errors.recipient}</span>
+                {/* Remove Entry Button (for multiple entries) */}
+                {formData.requestType.multiple &&
+                  formData.entries.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeEntry(index)}
+                      className="absolute top-2 right-2"
+                      aria-label="Remove entry"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+
+                {/* Entry Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor={`name-${index}`}>Name</Label>
+                    <Input
+                      id={`name-${index}`}
+                      value={entry.name}
+                      onChange={(e) =>
+                        handleEntryChange(index, "name", e.target.value)
+                      }
+                      className={
+                        errors[`name-${index}`] ? "border-red-500" : ""
+                      }
+                    />
+                    {errors[`name-${index}`] && (
+                      <span className="text-red-500 text-sm">
+                        {errors[`name-${index}`]}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor={`ippis-${index}`}>IPPIS Number</Label>
+                    <Input
+                      id={`ippis-${index}`}
+                      value={entry.ippis}
+                      onChange={(e) =>
+                        handleEntryChange(index, "ippis", e.target.value)
+                      }
+                      className={
+                        errors[`ippis-${index}`] ? "border-red-500" : ""
+                      }
+                    />
+                    {errors[`ippis-${index}`] && (
+                      <span className="text-red-500 text-sm">
+                        {errors[`ippis-${index}`]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* MDA Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor={`previousMDA-${index}`}>Previous MDA</Label>
+                    <Input
+                      id={`previousMDA-${index}`}
+                      value={entry.previousMDA}
+                      onChange={(e) =>
+                        handleEntryChange(index, "previousMDA", e.target.value)
+                      }
+                      className={
+                        errors[`previousMDA-${index}`] ? "border-red-500" : ""
+                      }
+                    />
+                    {errors[`previousMDA-${index}`] && (
+                      <span className="text-red-500 text-sm">
+                        {errors[`previousMDA-${index}`]}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor={`newMDA-${index}`}>New MDA</Label>
+                    <Input
+                      id={`newMDA-${index}`}
+                      value={entry.newMDA}
+                      onChange={(e) =>
+                        handleEntryChange(index, "newMDA", e.target.value)
+                      }
+                      className={
+                        errors[`newMDA-${index}`] ? "border-red-500" : ""
+                      }
+                    />
+                    {errors[`newMDA-${index}`] && (
+                      <span className="text-red-500 text-sm">
+                        {errors[`newMDA-${index}`]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Supporting Documents */}
+                <div className="space-y-2">
+                  <Label>Supporting Documents</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {supportingDocuments.map((doc) => (
+                      <div key={doc.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`${doc.id}-${index}`}
+                          name={`supporting-docs-${index}`}
+                          checked={entry.documents[doc.id]}
+                          onCheckedChange={(checked) =>
+                            handleDocumentChange(index, doc.id, checked)
+                          }
+                        />
+                        <Label htmlFor={`${doc.id}-${index}`}>
+                          {doc.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Additional Fields */}
+                <div>
+                  <Label htmlFor={`other-docs-${index}`}>
+                    Other Supporting Documents
+                  </Label>
+                  <Input
+                    id={`other-docs-${index}`}
+                    value={entry.otherDocuments}
+                    onChange={(e) =>
+                      handleEntryChange(index, "otherDocuments", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor={`observation-${index}`}>Observation</Label>
+                  <Input
+                    id={`observation-${index}`}
+                    value={entry.observation}
+                    onChange={(e) =>
+                      handleEntryChange(index, "observation", e.target.value)
+                    }
+                  />
+                </div>
+
+                {/* Remark Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor={`remark-${index}`}>Remark</Label>
+                  <Select
+                    name={`remark-${index}`}
+                    id={`remark-${index}`}
+                    value={entry.remark}
+                    onValueChange={(value) =>
+                      handleEntryChange(index, "remark", value)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a remark" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="approve">Approve</SelectItem>
+                      <SelectItem value="reject">Reject</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ))}
+
+            {/* Add Entry Button (for multiple requests) */}
+            {formData.requestType.multiple && (
+              <Button
+                type="button"
+                onClick={addEntry}
+                className="w-full"
+                variant="outline"
+              >
+                Add Another Entry
+              </Button>
+            )}
+
+            {/* Submit and Reset Buttons */}
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetForm}
+                className="hover:bg-gray-100"
+              >
+                Reset Form
+              </Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                Submit Form
+              </Button>
+            </div>
+
+            {/* Success Message */}
+            {showSuccess && (
+              <Alert className="mt-4 bg-green-100">
+                <AlertDescription>
+                  Form submitted successfully! The restoration and migration
+                  request has been recorded.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Error Message */}
+            {showError && (
+              <Alert className="mt-4 bg-red-100">
+                <AlertDescription>
+                  Please fill in all required fields correctly before
+                  submitting.
+                </AlertDescription>
+              </Alert>
             )}
           </div>
-
-          {/* Request Type Selection */}
-          <div className="space-y-2">
-            <Label>Request Type</Label>
-            <div className="flex space-x-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="request-type-single"
-                  name="request-type"
-                  checked={formData.requestType.single}
-                  onCheckedChange={() => handleRequestTypeChange("single")}
-                />
-                <Label htmlFor="request-type-single">Single</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="request-type-multiple"
-                  name="request-type"
-                  checked={formData.requestType.multiple}
-                  onCheckedChange={() => handleRequestTypeChange("multiple")}
-                />
-                <Label htmlFor="request-type-multiple">Multiple</Label>
-              </div>
-            </div>
-          </div>
-
-          {/* Entry Forms */}
-          {formData.entries.map((entry, index) => (
-            <div
-              key={index}
-              className="space-y-6 p-4 border rounded-lg relative"
-            >
-              {/* Remove Entry Button (for multiple entries) */}
-              {formData.requestType.multiple && formData.entries.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeEntry(index)}
-                  className="absolute top-2 right-2"
-                  aria-label="Remove entry"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-
-              {/* Entry Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor={`name-${index}`}>Name</Label>
-                  <Input
-                    id={`name-${index}`}
-                    value={entry.name}
-                    onChange={(e) =>
-                      handleEntryChange(index, "name", e.target.value)
-                    }
-                    className={errors[`name-${index}`] ? "border-red-500" : ""}
-                  />
-                  {errors[`name-${index}`] && (
-                    <span className="text-red-500 text-sm">
-                      {errors[`name-${index}`]}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor={`ippis-${index}`}>IPPIS Number</Label>
-                  <Input
-                    id={`ippis-${index}`}
-                    value={entry.ippis}
-                    onChange={(e) =>
-                      handleEntryChange(index, "ippis", e.target.value)
-                    }
-                    className={errors[`ippis-${index}`] ? "border-red-500" : ""}
-                  />
-                  {errors[`ippis-${index}`] && (
-                    <span className="text-red-500 text-sm">
-                      {errors[`ippis-${index}`]}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* MDA Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor={`previousMDA-${index}`}>Previous MDA</Label>
-                  <Input
-                    id={`previousMDA-${index}`}
-                    value={entry.previousMDA}
-                    onChange={(e) =>
-                      handleEntryChange(index, "previousMDA", e.target.value)
-                    }
-                    className={
-                      errors[`previousMDA-${index}`] ? "border-red-500" : ""
-                    }
-                  />
-                  {errors[`previousMDA-${index}`] && (
-                    <span className="text-red-500 text-sm">
-                      {errors[`previousMDA-${index}`]}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor={`newMDA-${index}`}>New MDA</Label>
-                  <Input
-                    id={`newMDA-${index}`}
-                    value={entry.newMDA}
-                    onChange={(e) =>
-                      handleEntryChange(index, "newMDA", e.target.value)
-                    }
-                    className={
-                      errors[`newMDA-${index}`] ? "border-red-500" : ""
-                    }
-                  />
-                  {errors[`newMDA-${index}`] && (
-                    <span className="text-red-500 text-sm">
-                      {errors[`newMDA-${index}`]}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Supporting Documents */}
-              <div className="space-y-2">
-                <Label>Supporting Documents</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  {supportingDocuments.map((doc) => (
-                    <div key={doc.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`${doc.id}-${index}`}
-                        name={`supporting-docs-${index}`}
-                        checked={entry.documents[doc.id]}
-                        onCheckedChange={(checked) =>
-                          handleDocumentChange(index, doc.id, checked)
-                        }
-                      />
-                      <Label htmlFor={`${doc.id}-${index}`}>{doc.label}</Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Additional Fields */}
-              <div>
-                <Label htmlFor={`other-docs-${index}`}>
-                  Other Supporting Documents
-                </Label>
-                <Input
-                  id={`other-docs-${index}`}
-                  value={entry.otherDocuments}
-                  onChange={(e) =>
-                    handleEntryChange(index, "otherDocuments", e.target.value)
-                  }
-                />
-              </div>
-
-              <div>
-                <Label htmlFor={`observation-${index}`}>Observation</Label>
-                <Input
-                  id={`observation-${index}`}
-                  value={entry.observation}
-                  onChange={(e) =>
-                    handleEntryChange(index, "observation", e.target.value)
-                  }
-                />
-              </div>
-
-              {/* Remark Selection */}
-              <div className="space-y-2">
-                <Label htmlFor={`remark-${index}`}>Remark</Label>
-                <Select
-                  name={`remark-${index}`}
-                  id={`remark-${index}`}
-                  value={entry.remark}
-                  onValueChange={(value) =>
-                    handleEntryChange(index, "remark", value)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a remark" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="approve">Approve</SelectItem>
-                    <SelectItem value="reject">Reject</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          ))}
-
-          {/* Add Entry Button (for multiple requests) */}
-          {formData.requestType.multiple && (
-            <Button
-              type="button"
-              onClick={addEntry}
-              className="w-full"
-              variant="outline"
-            >
-              Add Another Entry
-            </Button>
-          )}
-
-          {/* Submit and Reset Buttons */}
-          <div className="flex justify-end space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={resetForm}
-              className="hover:bg-gray-100"
-            >
-              Reset Form
-            </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-              Submit Form
-            </Button>
-          </div>
-
-          {/* Success Message */}
-          {showSuccess && (
-            <Alert className="mt-4 bg-green-100">
-              <AlertDescription>
-                Form submitted successfully! The restoration and migration
-                request has been recorded.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Error Message */}
-          {showError && (
-            <Alert className="mt-4 bg-red-100">
-              <AlertDescription>
-                Please fill in all required fields correctly before submitting.
-              </AlertDescription>
-            </Alert>
-          )}
-        </form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </form>
   );
 };
 
