@@ -275,10 +275,7 @@ const DOFACorrectionForm = () => {
           requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
           mda: data.mda || "N/A",
           address: data.address || "N/A",
-          recipient:
-            data.recipient === "dg"
-              ? "The Director General"
-              : "The Permanent Secretary",
+          recipient: data.recipient,
           date: format(new Date(), "do MMMM, yyyy"),
           effectiveMonth: (() => {
             const nextMonth = new Date();
@@ -303,7 +300,9 @@ const DOFACorrectionForm = () => {
               : "",
             supportingDocsList: formattedEntries[0].supportingDocs,
             observation: entry.observation || "No observation",
-            remark: isApproved ? "Approved" : "Rejected",
+            remark: isApproved
+              ? "Recommended for Approval"
+              : "Not Recommended for Approval",
             isApproved: isApproved,
             reasonForRejection: isApproved
               ? ""

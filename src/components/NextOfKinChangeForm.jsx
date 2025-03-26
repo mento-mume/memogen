@@ -118,10 +118,7 @@ const generateDocument = async (data) => {
       requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
       mda: data.mda || "N/A",
       address: data.address || "N/A",
-      recipient:
-        data.recipient === "dg"
-          ? "The Director General"
-          : "The Permanent Secretary",
+      recipient: data.recipient,
       date: formatDate(new Date()),
       effectiveMonth: getEffectiveMonth(),
     };
@@ -141,7 +138,9 @@ const generateDocument = async (data) => {
         newNOKName: nokEntry.newNOKName,
         supportingDocsList: getSupportingDocsList(nokEntry),
         observation: nokEntry.observation || "No observation",
-        remark: isApproved ? "Approved" : "Rejected",
+        remark: isApproved
+          ? "Recommended for Approved"
+          : "Not Recommended for Approval",
         isApproved: isApproved,
         reasonForRejection: isApproved
           ? ""
@@ -158,7 +157,10 @@ const generateDocument = async (data) => {
         newNOKName: entry.newNOKName,
         supportingDocsList: getSupportingDocsList(entry),
         observation: entry.observation || "No observation",
-        remark: entry.remarks === "approve" ? "Approved" : "Rejected",
+        remark:
+          entry.remarks === "approve"
+            ? "Recommended for approval"
+            : "Not Recommended for approval",
         isApproved: entry.remarks === "approve",
       }));
 
@@ -196,7 +198,7 @@ const generateDocument = async (data) => {
             newNOKName: entry.newNOKName,
             supportingDocsList: getSupportingDocsList(entry),
             observation: entry.observation || "No observation",
-            remark: "Approved",
+            remark: "Recommended for Approval",
           }));
 
         const rejectedEntries = data.nokEntries
@@ -209,7 +211,7 @@ const generateDocument = async (data) => {
             newNOKName: entry.newNOKName,
             supportingDocsList: getSupportingDocsList(entry),
             observation: entry.observation || "No observation",
-            remark: "Rejected",
+            remark: "Not Recommended for Approval",
           }));
 
         templateData = {
@@ -238,9 +240,6 @@ const generateDocument = async (data) => {
         };
       }
     }
-
-    console.log("Template data:", templateData);
-    console.log("Using template:", templatePath);
 
     // Set the template data
     doc.setData(templateData);

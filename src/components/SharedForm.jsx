@@ -1,6 +1,6 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import { RECIPIENT_MAPPING } from "@/constants/formConstants";
+import { RECIPIENTS } from "@/constants/formConstants";
 
 import {
   Card,
@@ -177,19 +177,18 @@ const SharedForm = ({
                 <span className="text-red-500 text-sm">{errors.recipient}</span>
               )}
             </Label>
+
             <Select
               value={formData.recipient}
               onValueChange={(value) => handleInputChange("recipient", value)}
             >
-              <SelectTrigger
-                className={errors.recipient ? "border-red-500" : ""}
-              >
+              <SelectTrigger>
                 <SelectValue placeholder="Select recipient" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(RECIPIENT_MAPPING).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
+                {RECIPIENTS.map((recipient) => (
+                  <SelectItem key={recipient} value={recipient}>
+                    {recipient}
                   </SelectItem>
                 ))}
               </SelectContent>

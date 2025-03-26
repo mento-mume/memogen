@@ -49,7 +49,9 @@ const generateDocument = async (data) => {
         ? "/CON_Template_single.docx"
         : "/CON_Template_single_rejected.docx";
 
-      const status = isApproved ? "Approved" : "Rejected";
+      const status = isApproved
+        ? "Recommended for Approval"
+        : "Not Recommended for Approval";
       fileName = `Name_Change_Request_${data.nameEntries[0].previousName}_to_${data.nameEntries[0].newName}_${status}.docx`;
     } else {
       // Multiple requests - check if all approved, all rejected, or mixed
@@ -116,7 +118,7 @@ const generateDocument = async (data) => {
       requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
       mda: data.mda || "N/A",
       address: data.address || "N/A",
-      recipient: data.recipient || "The Director General",
+      recipient: data.recipient,
       date: formatDate(new Date()),
       effectiveMonth: getEffectiveMonth(),
     };
@@ -126,7 +128,7 @@ const generateDocument = async (data) => {
     if (isSingleRequest) {
       // For single entry
       const nameEntry = data.nameEntries[0];
-      const isApproved = nameEntry.remarks === "approve";
+      const isApproved = nameEntry.remarks === "Recommended for Approval";
 
       templateData = {
         ...commonData,
@@ -135,7 +137,9 @@ const generateDocument = async (data) => {
         ippisNumberFinal: nameEntry.ippisNumber || "N/A",
         supportingDocsList: getSupportingDocsList(nameEntry),
         observation: nameEntry.observation || "No observation",
-        remark: isApproved ? "Approved" : "Rejected",
+        remark: isApproved
+          ? "Recommended for Approval"
+          : "Not Recommended for Approval",
         isApproved: isApproved,
         reasonForRejection: isApproved
           ? ""
@@ -187,7 +191,7 @@ const generateDocument = async (data) => {
             newName: entry.newName,
             supportingDocsList: getSupportingDocsList(entry),
             observation: entry.observation || "No observation",
-            remark: "Approved",
+            remark: "Recommended for Approval",
           }));
 
         const rejectedEntries = data.nameEntries
@@ -199,7 +203,7 @@ const generateDocument = async (data) => {
             newName: entry.newName,
             supportingDocsList: getSupportingDocsList(entry),
             observation: entry.observation || "No observation",
-            remark: "Rejected",
+            remark: "Not Recommended for Approval",
           }));
 
         templateData = {
@@ -226,9 +230,6 @@ const generateDocument = async (data) => {
         };
       }
     }
-
-    console.log("Template data:", templateData);
-    console.log("Using template:", templatePath);
 
     // Set the template data
     doc.setData(templateData);
