@@ -75,8 +75,12 @@ const generateDocument = async (data) => {
       }
     }
 
-    // Fetch the appropriate template
+    // Fetch the appropriate template with proper error handling
     const response = await fetch(templatePath);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch template: ${response.statusText}`);
+    }
+
     const arrayBuffer = await response.arrayBuffer();
     const zip = new PizZip(arrayBuffer);
 
@@ -238,6 +242,9 @@ const generateDocument = async (data) => {
             newNOK: entry.newNOKName,
           })),
         };
+        // Inside generateDocument function
+        console.log("Template data being used:", templateData);
+        console.log("Template path being used:", templatePath);
       }
     }
 
@@ -273,7 +280,7 @@ const NextOfKinChangeForm = () => {
   // Form-specific state
   const [formData, setFormData] = useState({
     requestType: {
-      single: false,
+      single: true, // Set one to true
       multiple: false,
     },
     nokEntries: [{ ...emptyNOKEntry }],
@@ -382,33 +389,71 @@ const NextOfKinChangeForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSubmitStatus(null);
+  // Modify your handleSubmit function in NextOfKinChangeForm.jsx to accept commonData instead of an event
+  // const handleSubmit = (commonData) => {
+  //   // No need for e.preventDefault() here since it's not an event
+  //   setSubmitStatus(null);
 
-    if (validateForm()) {
-      setTimeout(async () => {
-        // Generate the document
-        const docGenerated = await generateDocument(formData);
+  //   if (validateForm()) {
+  //     setTimeout(async () => {
+  //       // Combine the common data with your form-specific data
+  //       const completeFormData = {
+  //         ...commonData,
+  //         ...formData,
+  //       };
 
-        setSubmitStatus(docGenerated ? "success" : "error");
+  //       // Generate the document
+  //       const docGenerated = await generateDocument(completeFormData);
 
-        if (docGenerated) {
-          setTimeout(() => {
-            setFormData({
-              reference: "",
-              date: null,
-              mda: "",
-              address: "",
-              recipient: "",
-              requestType: { single: false, multiple: false },
-              nokEntries: [{ ...emptyNOKEntry }],
-            });
-            setSubmitStatus(null);
-          }, 3000);
-        }
-      }, 1000);
-    } else {
+  //       setSubmitStatus(docGenerated ? "success" : "error");
+
+  //       if (docGenerated) {
+  //         setTimeout(() => {
+  //           setFormData({
+  //             requestType: { single: false, multiple: false },
+  //             nokEntries: [{ ...emptyNOKEntry }],
+  //           });
+  //           setSubmitStatus(null);
+  //         }, 3000);
+  //       }
+  //     }, 1000);
+  //   } else {
+  //     setSubmitStatus("error");
+  //   }
+  //   console.log("Form submission started with data:", commonData, formData);
+  // };
+  const handleSubmit = async (commonData) => {
+    if (!validateForm()) {
+      setSubmitStatus("error");
+      return;
+    }
+
+    try {
+      console.log("Starting document generation with data:", {
+        ...commonData,
+        ...formData,
+      });
+
+      const docGenerated = await generateDocument({
+        ...commonData,
+        ...formData,
+      });
+
+      console.log("Document generation result:", docGenerated);
+
+      setSubmitStatus(docGenerated ? "success" : "error");
+
+      if (docGenerated) {
+        setTimeout(() => {
+          setFormData({
+            requestType: { single: true, multiple: false },
+            nokEntries: [{ ...emptyNOKEntry }],
+          });
+          setSubmitStatus(null);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error("Error in form submission:", error);
       setSubmitStatus("error");
     }
   };
@@ -420,7 +465,7 @@ const NextOfKinChangeForm = () => {
       mda: "",
       address: "",
       recipient: "",
-      requestType: { single: false, multiple: false },
+      requestType: { single: true, multiple: false },
       nokEntries: [{ ...emptyNOKEntry }],
     });
     setErrors({});

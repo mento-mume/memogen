@@ -63,7 +63,7 @@ const generateDocument = async (data) => {
       );
 
       if (allApproved) {
-        templatePath = "/CON_Template_multiple_all_approved.docx";
+        templatePath = "/CON_Template_multiple.docx";
         fileName = "Name_Change_Request_Multiple_Entries_All_Approved.docx";
       } else if (allRejected) {
         templatePath = "/CON_Template_multiple_all_rejected.docx";
@@ -128,7 +128,7 @@ const generateDocument = async (data) => {
     if (isSingleRequest) {
       // For single entry
       const nameEntry = data.nameEntries[0];
-      const isApproved = nameEntry.remarks === "Recommended for Approval";
+      const isApproved = nameEntry.remarks === "approve";
 
       templateData = {
         ...commonData,
@@ -138,8 +138,8 @@ const generateDocument = async (data) => {
         supportingDocsList: getSupportingDocsList(nameEntry),
         observation: nameEntry.observation || "No observation",
         remark: isApproved
-          ? "Recommended for Approval"
-          : "Not Recommended for Approval",
+          ? "Not Recommended for Approval"
+          : "Recommended for Approval",
         isApproved: isApproved,
         reasonForRejection: isApproved
           ? ""
@@ -155,8 +155,11 @@ const generateDocument = async (data) => {
         newName: entry.newName,
         supportingDocsList: getSupportingDocsList(entry),
         observation: entry.observation || "No observation",
-        remark: entry.remarks === "approve" ? "Approved" : "Rejected",
-        isApproved: entry.remarks === "approve",
+        remark:
+          entry.remarks === "approve"
+            ? "Recommended for Approval"
+            : "Not Recommended for Approval",
+        isApproved: entry.remarks === "Recommended for Approval",
       }));
 
       // Check if all approved, all rejected, or mixed

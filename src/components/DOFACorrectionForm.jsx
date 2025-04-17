@@ -251,23 +251,34 @@ const DOFACorrectionForm = () => {
           linebreaks: true,
         });
 
-        // Format supporting documents for each entry
-        const formattedEntries = data.entries.map((entry, index) => ({
-          ...entry,
-          sn: String.fromCharCode(97 + index), // Convert index to letter (a, b, c, etc.)
-          previousDOFA: entry.previousDOFA
-            ? format(entry.previousDOFA, "do MMMM, yyyy")
-            : "",
-          newDOFA: entry.newDOFA ? format(entry.newDOFA, "do MMMM, yyyy") : "",
-          supportingDocs: Object.entries(entry.documents)
-            .filter(([, value]) => value)
-            .map(([key]) => {
-              const doc = supportingDocuments.find((d) => d.id === key);
-              return doc ? doc.label : key;
-            })
-            .join(", "),
-          isApproved: entry.remark === "approve",
-        }));
+        // Format supporting documents for each entry and map remark values to display text
+        const formattedEntries = data.entries.map((entry, index) => {
+          const isApproved = entry.remark === "approve";
+          return {
+            ...entry,
+            sn: String.fromCharCode(97 + index), // Convert index to letter (a, b, c, etc.)
+            previousDOFA: entry.previousDOFA
+              ? format(entry.previousDOFA, "do MMMM, yyyy")
+              : "",
+            newDOFA: entry.newDOFA
+              ? format(entry.newDOFA, "do MMMM, yyyy")
+              : "",
+            supportingDocs: Object.entries(entry.documents)
+              .filter(([, value]) => value)
+              .map(([key]) => {
+                const doc = supportingDocuments.find((d) => d.id === key);
+                return doc ? doc.label : key;
+              })
+              .join(", "),
+            isApproved: isApproved,
+            remark: isApproved
+              ? "Recommended for Approval"
+              : "Not Recommended for Approval",
+            reasonForRejection: isApproved
+              ? ""
+              : entry.observation || "Incomplete documentation",
+          };
+        });
 
         // Common data for all templates
         const templateData = {
@@ -286,47 +297,40 @@ const DOFACorrectionForm = () => {
 
         if (isSingleRequest) {
           // For single entry
-          const entry = data.entries[0];
-          const isApproved = entry.remark === "approve";
+          const entry = formattedEntries[0];
 
           Object.assign(templateData, {
             name: entry.name,
             ippis: entry.ippis || "N/A",
-            previousDOFA: entry.previousDOFA
-              ? format(entry.previousDOFA, "do MMMM, yyyy")
-              : "",
-            newDOFA: entry.newDOFA
-              ? format(entry.newDOFA, "do MMMM, yyyy")
-              : "",
-            supportingDocsList: formattedEntries[0].supportingDocs,
+            previousDOFA: entry.previousDOFA,
+            newDOFA: entry.newDOFA,
+            supportingDocsList: entry.supportingDocs,
             observation: entry.observation || "No observation",
-            remark: isApproved
-              ? "Recommended for Approval"
-              : "Not Recommended for Approval",
-            isApproved: isApproved,
-            reasonForRejection: isApproved
-              ? ""
-              : entry.observation || "Incomplete documentation",
+            remark: entry.remark, // Already formatted with correct display text
+            isApproved: entry.isApproved,
+            reasonForRejection: entry.reasonForRejection,
           });
         } else {
           // For multiple entries
-          const allApproved = data.entries.every(
-            (entry) => entry.remark === "approve"
+          const allApproved = formattedEntries.every(
+            (entry) => entry.isApproved
           );
-          const allRejected = data.entries.every(
-            (entry) => entry.remark === "reject"
+          const allRejected = formattedEntries.every(
+            (entry) => !entry.isApproved
           );
 
           if (allApproved || allRejected) {
             Object.assign(templateData, {
               entries: formattedEntries,
               allApproved: allApproved,
+              // Use the formatted remark for each entry in the summary
               summaryRows: formattedEntries.map((entry) => ({
                 sn: entry.sn,
                 ippis: entry.ippis || "N/A",
                 name: entry.name,
                 previousDOFA: entry.previousDOFA,
                 newDOFA: entry.newDOFA,
+                remark: entry.remark, // Now includes "Recommended for Approval" or "Not Recommended for Approval"
               })),
             });
           } else {
@@ -344,12 +348,14 @@ const DOFACorrectionForm = () => {
               rejectedEntries: rejectedEntries,
               hasApproved: approvedEntries.length > 0,
               hasRejected: rejectedEntries.length > 0,
+              // Use the formatted remark for each entry in the summaries
               approvedSummary: approvedEntries.map((entry) => ({
                 sn: entry.sn,
                 ippis: entry.ippis || "N/A",
                 name: entry.name,
                 previousDOFA: entry.previousDOFA,
                 newDOFA: entry.newDOFA,
+                remark: entry.remark, // Now "Recommended for Approval"
               })),
               rejectedSummary: rejectedEntries.map((entry) => ({
                 sn: entry.sn,
@@ -357,6 +363,7 @@ const DOFACorrectionForm = () => {
                 name: entry.name,
                 previousDOFA: entry.previousDOFA,
                 newDOFA: entry.newDOFA,
+                remark: entry.remark, // Now "Not Recommended for Approval"
               })),
             });
           }

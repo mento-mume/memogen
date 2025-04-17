@@ -34,7 +34,7 @@ const initialEntry = {
   remark: "approve",
 };
 
-// Configuration for supporting documents that can be selected
+// List of document types that can be selected
 const supportingDocuments = [
   { id: "posting", label: "Posting Instruction" },
   { id: "payslip", label: "Payslip" },
@@ -43,20 +43,19 @@ const supportingDocuments = [
 ];
 
 const RestorationMigrationForm = () => {
-  // Initialize the main form state with default values
+  // Main form state
   const [formData, setFormData] = useState({
-    requestType: {
-      single: true,
-      multiple: false,
-    },
+    requestType: { single: true, multiple: false },
     entries: [{ ...initialEntry }],
   });
 
-  // State management for form validation and notifications
+  // Form validation errors
   const [errors, setErrors] = useState({});
+
+  // Form submission status (success, error, or null)
   const [submitStatus, setSubmitStatus] = useState(null);
 
-  // Handler for switching between single and multiple request types
+  // Switch between single and multiple request types
   const handleRequestTypeChange = (type) => {
     setFormData((prev) => ({
       ...prev,
@@ -67,7 +66,7 @@ const RestorationMigrationForm = () => {
     }));
   };
 
-  // Handler for updating individual entry fields
+  // Update a field in a specific entry
   const handleEntryChange = (index, field, value) => {
     setFormData((prev) => ({
       ...prev,
@@ -77,7 +76,7 @@ const RestorationMigrationForm = () => {
     }));
   };
 
-  // Handler for toggling document checkboxes
+  // Toggle a document checkbox in a specific entry
   const handleDocumentChange = (index, docId, checked) => {
     setFormData((prev) => ({
       ...prev,
@@ -95,29 +94,30 @@ const RestorationMigrationForm = () => {
     }));
   };
 
-  // Function to add a new entry for multiple requests
+  // Add a new entry to the form
   const addEntry = () => {
-    setFormData((prev) => ({
-      ...prev,
-      entries: [...prev.entries, { ...initialEntry }],
-    }));
+    setFormData({
+      ...formData,
+      entries: [...formData.entries, { ...initialEntry }],
+    });
   };
 
-  // Function to remove an entry from multiple requests
+  // Remove an entry from the form
   const removeEntry = (index) => {
     if (formData.entries.length > 1) {
-      setFormData((prev) => ({
-        ...prev,
-        entries: prev.entries.filter((_, i) => i !== index),
-      }));
+      const newEntries = formData.entries.filter((_, i) => i !== index);
+      setFormData({ ...formData, entries: newEntries });
     }
   };
 
-  // Comprehensive form validation
+  // Validate the form
   const validateForm = () => {
     const newErrors = {};
 
-    // Validate each entry
+    if (!formData.requestType.single && !formData.requestType.multiple) {
+      newErrors.requestType = "Please select a request type";
+    }
+
     formData.entries.forEach((entry, index) => {
       if (!entry.name) newErrors[`name-${index}`] = "Name is required";
       if (!entry.ippis)
@@ -131,7 +131,7 @@ const RestorationMigrationForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Form submission handler
+  // Handle form submission
   const handleSubmit = async (commonData) => {
     if (!validateForm()) {
       setSubmitStatus("error");
@@ -147,12 +147,10 @@ const RestorationMigrationForm = () => {
       setSubmitStatus(docGenerated ? "success" : "error");
 
       if (docGenerated) {
+        // Reset form after successful submission (with delay)
         setTimeout(() => {
           setFormData({
-            requestType: {
-              single: true,
-              multiple: false,
-            },
+            requestType: { single: true, multiple: false },
             entries: [{ ...initialEntry }],
           });
           setSubmitStatus(null);
@@ -164,30 +162,23 @@ const RestorationMigrationForm = () => {
     }
   };
 
-  // Form reset handler
+  // Reset the form
   const handleReset = () => {
     setFormData({
-      requestType: {
-        single: true,
-        multiple: false,
-      },
+      requestType: { single: true, multiple: false },
       entries: [{ ...initialEntry }],
     });
     setSubmitStatus(null);
   };
 
-  // Document generation function
+  // Generate a document based on form data
   const generateDocument = async (data) => {
     try {
-      // Check the request type and approval status
       const isSingleRequest = !data.requestType.multiple;
+      let templatePath, fileName;
 
-      // For single requests
-      let templatePath;
-      let fileName;
-
+      // Determine which template to use based on request type and approval status
       if (isSingleRequest) {
-        // Single request - check if approved or rejected
         const isApproved = data.entries[0].remark === "approve";
         templatePath = isApproved
           ? "/RES_Template_single.docx"
@@ -196,7 +187,6 @@ const RestorationMigrationForm = () => {
         const status = isApproved ? "Approved" : "Rejected";
         fileName = `Restoration_Migration_Request_${data.entries[0].name}_${status}.docx`;
       } else {
-        // Multiple requests - check if all approved, all rejected, or mixed
         const allApproved = data.entries.every(
           (entry) => entry.remark === "approve"
         );
@@ -210,7 +200,8 @@ const RestorationMigrationForm = () => {
             "Restoration_Migration_Request_Multiple_Entries_All_Approved.docx";
         } else if (allRejected) {
           templatePath = "/RES_Template_multiple_all_rejected.docx";
-          fileName = "RES_Template_multiple_Entries_All_Rejected.docx";
+          fileName =
+            "Restoration_Migration_Request_Multiple_Entries_All_Rejected.docx";
         } else {
           templatePath = "/RES_Template_multiple_mixed.docx";
           fileName =
@@ -218,34 +209,30 @@ const RestorationMigrationForm = () => {
         }
       }
 
-      // Fetch the template with error handling
-      try {
-        const response = await fetch(templatePath);
-        if (!response.ok) {
-          console.error("Template fetch failed:", {
-            status: response.status,
-            statusText: response.statusText,
-            url: response.url,
-          });
-          throw new Error(`Failed to fetch template: ${response.statusText}`);
-        }
+      // Fetch the template
+      const response = await fetch(templatePath);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch template: ${response.statusText}`);
+      }
 
-        const templateBlob = await response.blob();
-        const templateArrayBuffer = await templateBlob.arrayBuffer();
+      const templateBlob = await response.blob();
+      const templateArrayBuffer = await templateBlob.arrayBuffer();
 
-        // Create a new instance of PizZip
-        const zip = new PizZip(templateArrayBuffer);
+      // Create docx template processor
+      const zip = new PizZip(templateArrayBuffer);
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+      });
 
-        // Create a new instance of Docxtemplater
-        const doc = new Docxtemplater(zip, {
-          paragraphLoop: true,
-          linebreaks: true,
-        });
-
-        // Format supporting documents for each entry
-        const formattedEntries = data.entries.map((entry, index) => ({
+      // Format entry data for the template
+      const formattedEntries = data.entries.map((entry, index) => {
+        const isApproved = entry.remark === "approve";
+        return {
           ...entry,
           sn: String.fromCharCode(97 + index), // Convert index to letter (a, b, c, etc.)
+          previousMDA: entry.previousMDA,
+          newMDA: entry.newMDA,
           supportingDocs: Object.entries(entry.documents)
             .filter(([, value]) => value)
             .map(([key]) => {
@@ -253,125 +240,163 @@ const RestorationMigrationForm = () => {
               return doc ? doc.label : key;
             })
             .join(", "),
-          isApproved: entry.remark === "approve",
-        }));
-
-        // Common data for all templates
-        const templateData = {
-          referenceNumber: data.reference,
-          requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
-          mda: data.mda || "N/A",
-          address: data.address || "N/A",
-          recipient: data.recipient,
-          date: format(new Date(), "do MMMM, yyyy"),
-          effectiveMonth: (() => {
-            const nextMonth = new Date();
-            nextMonth.setMonth(nextMonth.getMonth() + 1);
-            return format(nextMonth, "MMMM yyyy");
-          })(),
+          isApproved: isApproved,
+          remark: isApproved
+            ? "Recommended for Approval"
+            : "Not Recommended for Approval",
+          reasonForRejection: isApproved
+            ? ""
+            : entry.observation || "Incomplete documentation",
         };
+      });
 
-        if (isSingleRequest) {
-          // For single entry
-          const entry = data.entries[0];
-          const isApproved = entry.remark === "approve";
+      // Prepare common data for template
+      const templateData = {
+        referenceNumber: data.reference || "N/A",
+        requestDate: data.date ? format(data.date, "do MMMM, yyyy") : "",
+        mda: data.mda || "N/A",
+        address: data.address || "N/A",
+        recipient: data.recipient || "N/A",
+        date: format(new Date(), "do MMMM, yyyy"),
+        effectiveMonth: format(
+          new Date(new Date().setMonth(new Date().getMonth() + 1)),
+          "MMMM yyyy"
+        ),
+      };
 
+      // Add type-specific data to template
+      if (isSingleRequest) {
+        // Single entry request
+        const entry = formattedEntries[0];
+
+        Object.assign(templateData, {
+          name: entry.name,
+          ippis: entry.ippis || "N/A",
+          previousMDA: entry.previousMDA,
+          newMDA: entry.newMDA,
+          supportingDocsList: entry.supportingDocs,
+          observation: entry.observation || "No observation",
+          remark: entry.remark,
+          isApproved: entry.isApproved,
+          reasonForRejection: entry.reasonForRejection,
+        });
+      } else {
+        // Multiple entries request
+        const allApproved = formattedEntries.every((entry) => entry.isApproved);
+        const allRejected = formattedEntries.every(
+          (entry) => !entry.isApproved
+        );
+
+        if (allApproved || allRejected) {
           Object.assign(templateData, {
-            name: entry.name,
-            ippis: entry.ippis || "N/A",
-            previousMDA: entry.previousMDA,
-            newMDA: entry.newMDA,
-            supportingDocsList: formattedEntries[0].supportingDocs,
-            observation: entry.observation || "No observation",
-            remark: isApproved
-              ? "Recommended for Approval"
-              : "Not Recommended for Approval",
-            isApproved: isApproved,
-            reasonForRejection: isApproved
-              ? ""
-              : entry.observation || "Incomplete documentation",
+            entries: formattedEntries,
+            allApproved: allApproved,
+            summaryRows: formattedEntries.map((entry) => ({
+              sn: entry.sn,
+              ippis: entry.ippis || "N/A",
+              name: entry.name,
+              previousMDA: entry.previousMDA,
+              newMDA: entry.newMDA,
+              remark: entry.remark, // This should include "Recommended for Approval" or "Not Recommended for Approval"
+            })),
           });
         } else {
-          // For multiple entries
-          const allApproved = data.entries.every(
-            (entry) => entry.remark === "approve"
+          // Mixed approvals and rejections
+          const approvedEntries = formattedEntries.filter(
+            (entry) => entry.isApproved
           );
-          const allRejected = data.entries.every(
-            (entry) => entry.remark === "reject"
+          const rejectedEntries = formattedEntries.filter(
+            (entry) => !entry.isApproved
           );
 
-          if (allApproved || allRejected) {
-            Object.assign(templateData, {
-              entries: formattedEntries,
-              allApproved: allApproved,
-              summaryRows: formattedEntries.map((entry) => ({
-                sn: entry.sn,
-                ippis: entry.ippis || "N/A",
-                name: entry.name,
-                previousMDA: entry.previousMDA,
-                newMDA: entry.newMDA,
-              })),
-            });
-          } else {
-            // Mixed case: separate approved and rejected entries
-            const approvedEntries = formattedEntries.filter(
-              (entry) => entry.isApproved
-            );
-            const rejectedEntries = formattedEntries.filter(
-              (entry) => !entry.isApproved
-            );
+          // Debugging log to verify entries are correctly categorized
+          console.log("Approved entries:", approvedEntries);
+          console.log("Rejected entries:", rejectedEntries);
 
-            Object.assign(templateData, {
-              entries: formattedEntries, // All entries for reference
-              approvedEntries: approvedEntries,
-              rejectedEntries: rejectedEntries,
-              hasApproved: approvedEntries.length > 0,
-              hasRejected: rejectedEntries.length > 0,
-              approvedSummary: approvedEntries.map((entry) => ({
-                sn: entry.sn,
-                ippis: entry.ippis || "N/A",
-                name: entry.name,
-                previousMDA: entry.previousMDA,
-                newMDA: entry.newMDA,
-              })),
-              rejectedSummary: rejectedEntries.map((entry) => ({
-                sn: entry.sn,
-                ippis: entry.ippis || "N/A",
-                name: entry.name,
-                previousMDA: entry.previousMDA,
-                newMDA: entry.newMDA,
-              })),
-            });
-          }
-        }
-
-        console.log("Template data:", templateData);
-
-        try {
-          // Render the document with the data
-          doc.render(templateData);
-
-          // Generate the document
-          const output = doc.getZip().generate({
-            type: "blob",
-            mimeType:
-              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          Object.assign(templateData, {
+            entries: formattedEntries,
+            approvedEntries: approvedEntries,
+            rejectedEntries: rejectedEntries,
+            hasApproved: approvedEntries.length > 0,
+            hasRejected: rejectedEntries.length > 0,
+            approvedSummary: approvedEntries.map((entry) => ({
+              sn: entry.sn,
+              ippis: entry.ippis || "N/A",
+              name: entry.name,
+              previousMDA: entry.previousMDA,
+              newMDA: entry.newMDA,
+              remark: entry.remark,
+            })),
+            rejectedSummary: rejectedEntries.map((entry) => ({
+              sn: entry.sn,
+              ippis: entry.ippis || "N/A",
+              name: entry.name,
+              previousMDA: entry.previousMDA,
+              newMDA: entry.newMDA,
+              remark: entry.remark,
+            })),
           });
-
-          // Save the file
-          saveAs(output, fileName);
-          return true;
-        } catch (renderError) {
-          console.error("Error rendering document:", renderError);
-          if (renderError.properties && renderError.properties.errors) {
-            console.error("Template errors:", renderError.properties.errors);
-          }
-          throw renderError;
         }
-      } catch (fetchError) {
-        console.error("Error fetching template:", fetchError);
-        throw fetchError;
+
+        if (allApproved || allRejected) {
+          Object.assign(templateData, {
+            entries: formattedEntries,
+            allApproved: allApproved,
+            summaryRows: formattedEntries.map((entry) => ({
+              sn: entry.sn,
+              ippis: entry.ippis || "N/A",
+              name: entry.name,
+              previousMDA: entry.previousMDA,
+              newMDA: entry.newMDA,
+              remark: entry.remark,
+            })),
+          });
+        } else {
+          // Mixed approvals and rejections
+          const approvedEntries = formattedEntries.filter(
+            (entry) => entry.isApproved
+          );
+          const rejectedEntries = formattedEntries.filter(
+            (entry) => !entry.isApproved
+          );
+
+          Object.assign(templateData, {
+            entries: formattedEntries,
+            approvedEntries: approvedEntries,
+            rejectedEntries: rejectedEntries,
+            hasApproved: approvedEntries.length > 0,
+            hasRejected: rejectedEntries.length > 0,
+            approvedSummary: approvedEntries.map((entry) => ({
+              sn: entry.sn,
+              ippis: entry.ippis || "N/A",
+              name: entry.name,
+              previousMDA: entry.previousMDA,
+              newMDA: entry.newMDA,
+              remark: entry.remark,
+            })),
+            rejectedSummary: rejectedEntries.map((entry) => ({
+              sn: entry.sn,
+              ippis: entry.ippis || "N/A",
+              name: entry.name,
+              previousMDA: entry.previousMDA,
+              newMDA: entry.newMDA,
+              remark: entry.remark,
+            })),
+          });
+        }
       }
+
+      // Generate the document
+      doc.render(templateData);
+      const output = doc.getZip().generate({
+        type: "blob",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+
+      // Save the file for download
+      saveAs(output, fileName);
+      return true;
     } catch (error) {
       console.error("Error in document generation:", error);
       return false;
@@ -394,7 +419,6 @@ const RestorationMigrationForm = () => {
           <div className="flex items-center space-x-2">
             <Checkbox
               id="request-type-single"
-              name="request-type"
               checked={formData.requestType.single}
               onCheckedChange={() => handleRequestTypeChange("single")}
             />
@@ -403,7 +427,6 @@ const RestorationMigrationForm = () => {
           <div className="flex items-center space-x-2">
             <Checkbox
               id="request-type-multiple"
-              name="request-type"
               checked={formData.requestType.multiple}
               onCheckedChange={() => handleRequestTypeChange("multiple")}
             />
@@ -511,7 +534,6 @@ const RestorationMigrationForm = () => {
                 <div key={doc.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={`${doc.id}-${index}`}
-                    name={`supporting-docs-${index}`}
                     checked={entry.documents[doc.id]}
                     onCheckedChange={(checked) =>
                       handleDocumentChange(index, doc.id, checked)
@@ -552,8 +574,6 @@ const RestorationMigrationForm = () => {
           <div className="space-y-2">
             <Label htmlFor={`remark-${index}`}>Remark</Label>
             <Select
-              name={`remark-${index}`}
-              id={`remark-${index}`}
               value={entry.remark}
               onValueChange={(value) =>
                 handleEntryChange(index, "remark", value)
